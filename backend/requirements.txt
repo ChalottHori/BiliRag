@@ -1,0 +1,28 @@
+# --- Web / API ---
+fastapi
+uvicorn[standard]
+python-multipart
+
+# --- Data ---
+sqlalchemy
+aiosqlite
+pydantic
+pydantic-settings
+
+# --- HTTP / crypto ---
+httpx
+cryptography
+
+# --- Vector / embedding ---
+chromadb
+sentence-transformers
+
+# --- ASR ---
+faster-whisper
+
+# --- Dev / test / lint ---
+ruff
+black
+mypy
+pytest
+pytest-asyncio
