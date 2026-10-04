@@ -1,0 +1,132 @@
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.title {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.topActions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.iconBtn:hover {
+  background: var(--glass-bg);
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.empty {
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 40px;
+}
+
+.bubbleUser,
+.bubbleAssistant {
+  max-width: 80%;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.bubbleUser {
+  align-self: flex-end;
+  background: var(--brand);
+  color: var(--brand-text);
+  border-bottom-right-radius: 4px;
+}
+
+.bubbleAssistant {
+  align-self: flex-start;
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  border-bottom-left-radius: 4px;
+}
+
+.bubbleText {
+  white-space: pre-wrap;
+}
+
+.cursor {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.citation {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.inputArea {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-top: 1px solid var(--glass-border);
+}
+
+.input {
+  flex: 1;
+  resize: none;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-item);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--brand);
+}

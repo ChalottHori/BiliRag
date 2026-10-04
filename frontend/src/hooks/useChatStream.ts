@@ -17,6 +17,7 @@ export function useChatStream() {
   const addMessage = useChatStore((s) => s.addMessage)
   const appendToLast = useChatStore((s) => s.appendToLast)
   const setLastCitations = useChatStore((s) => s.setLastCitations)
+  const finishLastMessage = useChatStore((s) => s.finishLastMessage)
   const setStreaming = useChatStore((s) => s.setStreaming)
   const streaming = useChatStore((s) => s.streaming)
 
@@ -62,10 +63,11 @@ export function useChatStream() {
           }
         }
       } finally {
+        finishLastMessage()
         setStreaming(false)
       }
     },
-    [addMessage, appendToLast, setLastCitations, setStreaming],
+    [addMessage, appendToLast, setLastCitations, finishLastMessage, setStreaming],
   )
 
   return { send, streaming }

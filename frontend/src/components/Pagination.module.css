@@ -1,0 +1,30 @@
+.pagination {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-lg);
+}
+
+.btn,
+.btnActive {
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-body);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btnActive {
+  background: var(--brand);
+  color: var(--brand-text);
+  border-color: var(--brand);
+}

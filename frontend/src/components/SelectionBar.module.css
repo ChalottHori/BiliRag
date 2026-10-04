@@ -1,0 +1,24 @@
+.bar {
+  position: sticky;
+  bottom: var(--space-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+  margin-top: var(--space-md);
+}
+
+.count {
+  color: var(--text-body);
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-md);
+}

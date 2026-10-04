@@ -17,6 +17,7 @@ interface ChatState {
   addMessage: (message: ChatMessage) => void
   appendToLast: (content: string) => void
   setLastCitations: (citations: Citation[]) => void
+  finishLastMessage: () => void
   setStreaming: (streaming: boolean) => void
   reset: () => void
 }
@@ -41,6 +42,13 @@ export const useChatStore = create<ChatState>((set) => ({
       const messages = [...s.messages]
       const last = messages[messages.length - 1]
       if (last) messages[messages.length - 1] = { ...last, citations }
+      return { messages }
+    }),
+  finishLastMessage: () =>
+    set((s) => {
+      const messages = [...s.messages]
+      const last = messages[messages.length - 1]
+      if (last) messages[messages.length - 1] = { ...last, streaming: false }
       return { messages }
     }),
   setStreaming: (streaming) => set({ streaming }),
