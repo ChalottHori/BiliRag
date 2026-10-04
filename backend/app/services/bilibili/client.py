@@ -116,19 +116,22 @@ class BilibiliClient:
         return {"qrcode_url": data["url"], "qrcode_key": data["qrcode_key"]}
 
     async def poll_qrcode(self, qrcode_key: str) -> dict[str, Any]:
-        data = await self._get_json(
+        """轮询扫码状态。非 0 code 是正常中间态，不作为业务错误抛出。"""
+        resp = await self._request(
+            "GET",
             f"{self.PASSPORT}/x/passport-login/web/qrcode/poll",
             params={"qrcode_key": qrcode_key},
         )
-        # code==0 表示扫码成功，返回的 url 需访问以换取 cookie
+        payload = resp.json()
         result: dict[str, Any] = {
-            "status": "success",
-            "code": 0,
-            "data": data,
+            "code": payload.get("code", -1),
+            "message": payload.get("message", ""),
+            "data": payload.get("data") or {},
         }
-        if data.get("url"):
-            resp = await self._request("GET", data["url"])
-            self._cookies = dict(resp.cookies)
+        # code==0 表示扫码成功，返回的 url 需访问以换取 cookie
+        if result["code"] == 0 and result["data"].get("url"):
+            resp2 = await self._request("GET", result["data"]["url"])
+            self._cookies = dict(resp2.cookies)
             result["cookies"] = self._cookies
         return result
 

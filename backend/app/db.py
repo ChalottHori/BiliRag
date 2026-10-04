@@ -131,14 +131,16 @@ def _create_fts5(engine: Engine) -> None:
 
 
 def _seed_settings(engine: Engine) -> None:
-    from .models import Setting
+    from .models import Folder, Setting
 
     factory = get_session_factory()
     with factory() as session:
         if session.get(Setting, "1") is None:
             data = defaults().model_dump()
             session.add(Setting(id="1", **data))
-            session.commit()
+        if session.query(Folder).filter(Folder.kind == "uncategorized").first() is None:
+            session.add(Folder(title="未分类", kind="uncategorized", fid=None))
+        session.commit()
 
 
 def init_db() -> None:
