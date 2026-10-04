@@ -42,6 +42,7 @@
   --space-2xl: 48px;
 
   /* 字体 */
-  --font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei',
-    'Noto Sans SC', 'Segoe UI', sans-serif;
+  --font-family:
+    'Inter', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', 'Segoe UI',
+    sans-serif;
 }

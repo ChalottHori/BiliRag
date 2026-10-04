@@ -90,23 +90,39 @@ export default function SettingsPage() {
         {section === 'llm' && (
           <>
             <Field label="base_url">
-              <Input value={String(form.llm_base_url ?? '')} onChange={(e) => set('llm_base_url', e.target.value)} />
+              <Input
+                value={String(form.llm_base_url ?? '')}
+                onChange={(e) => set('llm_base_url', e.target.value)}
+              />
             </Field>
             <Field label="api_key（留空不修改）">
-              <Input type="password" value={String(form.llm_api_key ?? '')} onChange={(e) => set('llm_api_key', e.target.value)} />
+              <Input
+                type="password"
+                value={String(form.llm_api_key ?? '')}
+                onChange={(e) => set('llm_api_key', e.target.value)}
+              />
             </Field>
             <Field label="model">
-              <Input value={String(form.llm_model ?? '')} onChange={(e) => set('llm_model', e.target.value)} />
+              <Input
+                value={String(form.llm_model ?? '')}
+                onChange={(e) => set('llm_model', e.target.value)}
+              />
             </Field>
             <Field label="qa_model">
-              <Input value={String(form.qa_llm_model ?? '')} onChange={(e) => set('qa_llm_model', e.target.value)} />
+              <Input
+                value={String(form.qa_llm_model ?? '')}
+                onChange={(e) => set('qa_llm_model', e.target.value)}
+              />
             </Field>
           </>
         )}
 
         {section === 'asr' && (
           <Field label="ASR 模型">
-            <Select value={String(form.asr_model ?? 'medium')} onChange={(e) => set('asr_model', e.target.value)}>
+            <Select
+              value={String(form.asr_model ?? 'medium')}
+              onChange={(e) => set('asr_model', e.target.value)}
+            >
               <option value="small">small</option>
               <option value="medium">medium</option>
               <option value="large-v3">large-v3</option>
@@ -117,10 +133,16 @@ export default function SettingsPage() {
         {section === 'data' && (
           <>
             <Field label="导出目录">
-              <Input value={String(form.export_dir ?? '')} onChange={(e) => set('export_dir', e.target.value)} />
+              <Input
+                value={String(form.export_dir ?? '')}
+                onChange={(e) => set('export_dir', e.target.value)}
+              />
             </Field>
             <Field label="保留音频">
-              <Switch checked={Boolean(form.keep_audio)} onCheckedChange={(v) => set('keep_audio', v)} />
+              <Switch
+                checked={Boolean(form.keep_audio)}
+                onCheckedChange={(v) => set('keep_audio', v)}
+              />
             </Field>
           </>
         )}
@@ -128,13 +150,25 @@ export default function SettingsPage() {
         {section === 'concurrency' && (
           <>
             <Field label="并发数">
-              <Input type="number" value={String(form.concurrency ?? 1)} onChange={(e) => set('concurrency', Number(e.target.value))} />
+              <Input
+                type="number"
+                value={String(form.concurrency ?? 1)}
+                onChange={(e) => set('concurrency', Number(e.target.value))}
+              />
             </Field>
             <Field label="切块字数">
-              <Input type="number" value={String(form.chunk_size ?? 1000)} onChange={(e) => set('chunk_size', Number(e.target.value))} />
+              <Input
+                type="number"
+                value={String(form.chunk_size ?? 1000)}
+                onChange={(e) => set('chunk_size', Number(e.target.value))}
+              />
             </Field>
             <Field label="检索条数">
-              <Input type="number" value={String(form.top_k ?? 5)} onChange={(e) => set('top_k', Number(e.target.value))} />
+              <Input
+                type="number"
+                value={String(form.top_k ?? 5)}
+                onChange={(e) => set('top_k', Number(e.target.value))}
+              />
             </Field>
           </>
         )}
@@ -142,13 +176,19 @@ export default function SettingsPage() {
         {section === 'embedding' && (
           <>
             <Field label="Provider">
-              <Select value={String(form.embedding_provider ?? 'local')} onChange={(e) => set('embedding_provider', e.target.value)}>
+              <Select
+                value={String(form.embedding_provider ?? 'local')}
+                onChange={(e) => set('embedding_provider', e.target.value)}
+              >
                 <option value="local">local</option>
                 <option value="api">api</option>
               </Select>
             </Field>
             <Field label="模型">
-              <Input value={String(form.embedding_model ?? '')} onChange={(e) => set('embedding_model', e.target.value)} />
+              <Input
+                value={String(form.embedding_model ?? '')}
+                onChange={(e) => set('embedding_model', e.target.value)}
+              />
             </Field>
           </>
         )}

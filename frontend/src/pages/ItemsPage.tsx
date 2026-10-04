@@ -23,7 +23,12 @@ export default function ItemsPage() {
   const itemsQuery = useQuery({
     queryKey: ['items', keyword, folderId, page],
     queryFn: () =>
-      listItems({ keyword: keyword || undefined, folder_id: folderId || undefined, page, page_size: 20 }),
+      listItems({
+        keyword: keyword || undefined,
+        folder_id: folderId || undefined,
+        page,
+        page_size: 20,
+      }),
   })
 
   const detailQuery = useQuery({
@@ -54,7 +59,11 @@ export default function ItemsPage() {
   return (
     <div className={styles.page}>
       <div className={styles.filters}>
-        <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="搜索标题 / 全文稿" />
+        <Input
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder="搜索标题 / 全文稿"
+        />
         <Select value={folderId} onChange={(e) => setFolderId(e.target.value)}>
           <option value="">全部收藏夹</option>
           {(foldersQuery.data ?? []).map((f) => (
@@ -67,7 +76,12 @@ export default function ItemsPage() {
 
       <div className={styles.list}>
         {items.map((item) => (
-          <button key={item.id} type="button" className={styles.row} onClick={() => setDetailId(item.id)}>
+          <button
+            key={item.id}
+            type="button"
+            className={styles.row}
+            onClick={() => setDetailId(item.id)}
+          >
             <div className={styles.title}>{item.part_title || item.title}</div>
             <StatusTag status={item.status} />
           </button>
@@ -77,7 +91,11 @@ export default function ItemsPage() {
 
       <Pagination page={page} pageSize={20} total={total} onChange={setPage} />
 
-      <Drawer open={!!detailId} title={detail ? detail.part_title || detail.title : '条目详情'} onClose={() => setDetailId(null)}>
+      <Drawer
+        open={!!detailId}
+        title={detail ? detail.part_title || detail.title : '条目详情'}
+        onClose={() => setDetailId(null)}
+      >
         {detail && (
           <div className={styles.detail}>
             {detail.summary?.overview && <p>{detail.summary.overview}</p>}

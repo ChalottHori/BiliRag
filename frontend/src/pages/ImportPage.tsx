@@ -19,7 +19,13 @@ export default function ImportPage() {
   const foldersQuery = useQuery({ queryKey: ['folders'], queryFn: listFolders })
 
   const parseMutation = useMutation({
-    mutationFn: () => parseLinks(links.split('\n').map((l) => l.trim()).filter(Boolean)),
+    mutationFn: () =>
+      parseLinks(
+        links
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean),
+      ),
     onSuccess: (data) => {
       setResults(data)
       setSelectedBvids(new Set(data.filter((d) => !d.error).map((d) => d.bvid)))

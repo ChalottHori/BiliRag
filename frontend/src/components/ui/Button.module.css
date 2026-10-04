@@ -6,7 +6,9 @@
   padding: 10px 24px;
   border-radius: var(--radius-pill);
   font-family: inherit;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
 }
 
 .button:disabled {

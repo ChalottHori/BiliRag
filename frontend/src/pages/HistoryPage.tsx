@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { deleteSession, exportSession, listMessages, listSessions, patchSession, searchChat } from '../api/chat'
+import {
+  deleteSession,
+  exportSession,
+  listMessages,
+  listSessions,
+  patchSession,
+  searchChat,
+} from '../api/chat'
 import { useChatStore } from '../stores/chat'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -43,9 +50,14 @@ export default function HistoryPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['chat-sessions'] }),
   })
 
-  const sessions = query.length > 0
-    ? (searchQuery.data?.items ?? []).map((h) => ({ id: h.session_id, title: h.title, pinned: h.pinned }))
-    : (sessionsQuery.data ?? [])
+  const sessions =
+    query.length > 0
+      ? (searchQuery.data?.items ?? []).map((h) => ({
+          id: h.session_id,
+          title: h.title,
+          pinned: h.pinned,
+        }))
+      : (sessionsQuery.data ?? [])
   const messages = messagesQuery.data ?? []
 
   const continueChat = async (id: string) => {
@@ -107,7 +119,10 @@ export default function HistoryPage() {
           <>
             <div className={styles.messages}>
               {messages.map((m) => (
-                <div key={m.id} className={m.role === 'user' ? styles.msgUser : styles.msgAssistant}>
+                <div
+                  key={m.id}
+                  className={m.role === 'user' ? styles.msgUser : styles.msgAssistant}
+                >
                   <div className={styles.role}>{m.role === 'user' ? '你' : '助手'}</div>
                   <div>{m.content}</div>
                 </div>
@@ -120,7 +135,10 @@ export default function HistoryPage() {
               <Button variant="secondary" onClick={() => handleRename(selectedId)}>
                 重命名
               </Button>
-              <Button variant="secondary" onClick={() => pinMutation.mutate({ id: selectedId, pinned: !selected?.pinned })}>
+              <Button
+                variant="secondary"
+                onClick={() => pinMutation.mutate({ id: selectedId, pinned: !selected?.pinned })}
+              >
                 置顶
               </Button>
               <Button variant="secondary" onClick={() => handleExport(selectedId)}>

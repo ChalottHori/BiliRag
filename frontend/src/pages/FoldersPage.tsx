@@ -55,7 +55,7 @@ export default function FoldersPage() {
 
   const folders = foldersQuery.data ?? []
   const activeFid =
-    explicitFid ?? (folders.find((f) => f.kind === 'uncategorized')?.id ?? folders[0]?.id ?? '')
+    explicitFid ?? folders.find((f) => f.kind === 'uncategorized')?.id ?? folders[0]?.id ?? ''
 
   const videosQuery = useQuery({
     queryKey: ['folder-videos', activeFid, page],
@@ -130,11 +130,19 @@ export default function FoldersPage() {
       <div className={styles.videoPanel} style={{ width: videoPanelWidth }}>
         <div className={styles.folderTabs}>
           {folders.map((folder) => (
-            <Chip key={folder.id} active={folder.id === activeFid} onClick={() => setExplicitFid(folder.id)}>
+            <Chip
+              key={folder.id}
+              active={folder.id === activeFid}
+              onClick={() => setExplicitFid(folder.id)}
+            >
               {folder.title}
             </Chip>
           ))}
-          <Button variant="ghost" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+          <Button
+            variant="ghost"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+          >
             刷新
           </Button>
         </div>
