@@ -20,14 +20,14 @@ npm run build      # 生产构建（产物 dist/，由后端静态托管）
 
 ## 脚本
 
-| 命令 | 说明 |
-|---|---|
-| `npm run dev` | 启动 Vite 开发服务器 |
-| `npm run build` | `tsc --noEmit && vite build` |
-| `npm run test` | 跑 vitest 测试 |
-| `npm run lint` | oxlint |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run format` | prettier 全量格式化 |
+| 命令                | 说明                         |
+| ------------------- | ---------------------------- |
+| `npm run dev`       | 启动 Vite 开发服务器         |
+| `npm run build`     | `tsc --noEmit && vite build` |
+| `npm run test`      | 跑 vitest 测试               |
+| `npm run lint`      | oxlint                       |
+| `npm run typecheck` | `tsc --noEmit`               |
+| `npm run format`    | prettier 全量格式化          |
 
 ## 目录结构
 
