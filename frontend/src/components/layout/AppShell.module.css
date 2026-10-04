@@ -40,6 +40,57 @@
   font-family: inherit;
 }
 
+.accountBtn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-body);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.welcomeTitle {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.welcomeDesc {
+  font-size: 16px;
+  color: var(--text-body);
+  margin: var(--space-md) 0 0;
+}
+
+.welcomeSub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: var(--space-sm) 0 var(--space-xl);
+}
+
+.welcomeBtn {
+  background: var(--brand);
+  color: var(--brand-text);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 12px 32px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
 .settingsBtn {
   color: var(--text-body);
   font-size: 18px;
