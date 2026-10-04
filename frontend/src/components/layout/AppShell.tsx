@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { useUiStore } from '../../stores/ui'
 import styles from './AppShell.module.css'
 
 const NAV_ITEMS = [
@@ -11,17 +11,8 @@ const NAV_ITEMS = [
 ]
 
 export default function AppShell() {
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem('bilirag:sidebar') === '1',
-  )
-
-  const toggle = () => {
-    setCollapsed((prev) => {
-      const next = !prev
-      localStorage.setItem('bilirag:sidebar', next ? '1' : '0')
-      return next
-    })
-  }
+  const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar)
 
   return (
     <div className={styles.shell}>
@@ -38,11 +29,11 @@ export default function AppShell() {
       </header>
 
       <div className={styles.body}>
-        <aside className={collapsed ? styles.sidebarCollapsed : styles.sidebar}>
-          <button type="button" className={styles.toggle} onClick={toggle}>
+        <aside className={sidebarCollapsed ? styles.sidebarCollapsed : styles.sidebar}>
+          <button type="button" className={styles.toggle} onClick={toggleSidebar}>
             ☰
           </button>
-          {!collapsed && (
+          {!sidebarCollapsed && (
             <nav className={styles.nav}>
               {NAV_ITEMS.map((item) => (
                 <NavLink
