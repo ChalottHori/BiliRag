@@ -1,0 +1,25 @@
+.chip {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-body);
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  background: var(--glass-bg);
+}
+
+.active {
+  background: var(--brand-soft);
+  color: var(--brand);
+  border-color: transparent;
+}
+
+.active:hover {
+  background: var(--brand-soft);
+}

@@ -1,0 +1,28 @@
+.content {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-item);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+  padding: var(--space-xs);
+  min-width: 140px;
+}
+
+.item,
+.itemDanger {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-body);
+  cursor: pointer;
+  outline: none;
+}
+
+.item:hover,
+.itemDanger:hover {
+  background: var(--glass-bg);
+}
+
+.itemDanger {
+  color: var(--danger);
+}

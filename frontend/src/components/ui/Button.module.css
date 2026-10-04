@@ -1,0 +1,39 @@
+.button {
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 24px;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: var(--brand);
+  color: var(--brand-text);
+}
+
+.primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--text-body);
+  border: 1px solid var(--glass-border);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-body);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--glass-bg);
+}

@@ -1,0 +1,47 @@
+/* 设计令牌（对齐 documents/ui设计.md §2） */
+:root {
+  /* 背景 */
+  --bg-deep: #16121c;
+  --bg-light: #2a1f2e;
+
+  /* 玻璃卡片 */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: blur(20px) saturate(140%);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  /* 文字 */
+  --text-primary: #ffffff;
+  --text-body: rgba(255, 255, 255, 0.75);
+  --text-secondary: rgba(255, 255, 255, 0.5);
+  --text-muted: rgba(255, 255, 255, 0.35);
+
+  /* 品牌（B 站粉） */
+  --brand: #fb7299;
+  --brand-soft: rgba(251, 114, 153, 0.15);
+  --brand-text: #ffffff;
+
+  /* 状态色 */
+  --blue: #5ba8ff;
+  --green: #4ade80;
+  --danger: #ff6b4a;
+  --gold: #facc15;
+  --amber: #eab308;
+
+  /* 圆角 */
+  --radius-card: 24px;
+  --radius-item: 12px;
+  --radius-pill: 999px;
+
+  /* 间距（8px 栅格） */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* 字体 */
+  --font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei',
+    'Noto Sans SC', 'Segoe UI', sans-serif;
+}

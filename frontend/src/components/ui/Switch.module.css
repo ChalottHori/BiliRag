@@ -1,0 +1,31 @@
+.root {
+  width: 40px;
+  height: 22px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.root[data-state='checked'] {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.15s ease;
+}
+
+.root[data-state='checked'] .thumb {
+  transform: translateX(18px);
+}

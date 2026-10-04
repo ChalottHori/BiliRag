@@ -1,0 +1,122 @@
+.shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-lg);
+  background: rgba(20, 16, 26, 0.6);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.logo {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.loginBtn {
+  background: var(--brand);
+  color: var(--brand-text);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.settingsBtn {
+  color: var(--text-body);
+  font-size: 18px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  border-right: 1px solid var(--glass-border);
+}
+
+.sidebarCollapsed {
+  width: 48px;
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  border-right: 1px solid var(--glass-border);
+}
+
+.toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-body);
+  font-size: 18px;
+  cursor: pointer;
+  height: 40px;
+  border-radius: var(--radius-item);
+}
+
+.toggle:hover {
+  background: var(--glass-bg);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.navItem,
+.navItemActive {
+  display: block;
+  height: 40px;
+  line-height: 40px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-item);
+  color: var(--text-body);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.navItem:hover {
+  background: var(--glass-bg);
+}
+
+.navItemActive {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-xl);
+}
