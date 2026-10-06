@@ -40,6 +40,31 @@ def test_business_error_raises() -> None:
         asyncio.run(_client(handler).get_nav())
 
 
+def test_poll_qrcode_captures_login_cookies() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "/poll" in request.url.path:
+            # poll 成功：返回 crossDomain URL（ticket 换 cookie）
+            return httpx.Response(
+                200,
+                json={"code": 0, "data": {"url": "https://passport.biligame.com/x/passport-login/web/crossDomain?ticket=t"}},
+            )
+        # crossDomain：302 + 跨域 Set-Cookie（Domain=.bilibili.com）
+        return httpx.Response(
+            302,
+            headers={
+                "Set-Cookie": "SESSDATA=abc%2Cdef; Domain=.bilibili.com; Path=/; HttpOnly",
+                "Location": "https://www.bilibili.com/",
+            },
+        )
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
+    client = BilibiliClient(client=http)
+    result = asyncio.run(client.poll_qrcode("K1"))
+    assert result["code"] == 0
+    assert result["cookies"] == {"SESSDATA": "abc%2Cdef"}
+    assert client.cookies == {"SESSDATA": "abc%2Cdef"}
+
+
 def test_generate_qrcode() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -48,6 +73,58 @@ def test_generate_qrcode() -> None:
 
     result = asyncio.run(_client(handler).generate_qrcode())
     assert result == {"qrcode_url": "https://x/qr", "qrcode_key": "K123"}
+
+
+def test_get_folder_videos_parses() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "code": 0,
+                "data": {
+                    "info": {"media_count": 2},
+                    "medias": [
+                        {
+                            "id": 123,
+                            "type": 2,
+                            "page": 3,
+                            "title": "收藏视频",
+                            "cover": "http://i0.hdslb.com/bfs/archive/c.jpg",
+                            "upper": {"mid": 1, "name": "UP主"},
+                            "duration": 90,
+                            "pubtime": 1700000000,
+                            "bvid": "BV1",
+                            "attr": 0,
+                        },
+                        {
+                            "id": 456,
+                            "type": 2,
+                            "page": 1,
+                            "title": "已失效",
+                            "cover": "http://i0.hdslb.com/bfs/archive/d.jpg",
+                            "upper": {"mid": 2, "name": "UP2"},
+                            "duration": 30,
+                            "pubtime": 1700000001,
+                            "bvid": "BV2",
+                            "attr": 9,
+                        },
+                    ],
+                },
+            },
+        )
+
+    result = asyncio.run(_client(handler).get_folder_videos("100"))
+    assert result["total"] == 2
+    v0 = result["videos"][0]
+    assert v0["bvid"] == "BV1"
+    assert v0["aid"] == 123
+    assert v0["up_name"] == "UP主"
+    assert v0["cover_url"] == "http://i0.hdslb.com/bfs/archive/c.jpg"
+    assert v0["pubdate"] == 1700000000
+    assert v0["is_invalid"] is False
+    assert v0["is_collection"] is True
+    assert result["videos"][1]["is_invalid"] is True
+    assert result["videos"][1]["is_collection"] is False
 
 
 def test_video_info_parts() -> None:

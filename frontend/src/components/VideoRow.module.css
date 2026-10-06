@@ -61,16 +61,68 @@
   font-family: inherit;
 }
 
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.importedTag {
+  color: var(--green);
+  background: rgba(74, 222, 128, 0.15);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.failedTag {
+  color: var(--danger);
+  background: rgba(255, 107, 74, 0.15);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.retryBtn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-body);
+  font-size: 11px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.retryBtn:hover {
+  background: var(--glass-bg);
+}
+
 .parts {
   padding: var(--space-xs) 0 var(--space-sm) 40px;
 }
 
 .partRow {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
   padding: var(--space-xs) 0;
   color: var(--text-body);
   font-size: 13px;
+}
+
+.partTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .partDuration {

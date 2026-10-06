@@ -54,6 +54,7 @@ class Item(Base):
     status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
     error_msg: Mapped[str] = mapped_column(Text, default="")
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    batch_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     imported_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(

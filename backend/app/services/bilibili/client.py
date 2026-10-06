@@ -121,6 +121,7 @@ class BilibiliClient:
             "GET",
             f"{self.PASSPORT}/x/passport-login/web/qrcode/poll",
             params={"qrcode_key": qrcode_key},
+            cookies={"SESSDATA": ""},  # 轮询需携带空 SESSDATA，否则可能不下发登录 cookie
         )
         payload = resp.json()
         result: dict[str, Any] = {
@@ -128,12 +129,29 @@ class BilibiliClient:
             "message": payload.get("message", ""),
             "data": payload.get("data") or {},
         }
-        # code==0 表示扫码成功，返回的 url 需访问以换取 cookie
+        # code==0 表示扫码成功：登录 cookie（SESSDATA 等）由 crossDomain 302 响应的
+        # Set-Cookie 下发（Domain=.bilibili.com），httpx 的 jar 会因跨域丢弃，需手动解析。
         if result["code"] == 0 and result["data"].get("url"):
-            resp2 = await self._request("GET", result["data"]["url"])
-            self._cookies = dict(resp2.cookies)
+            resp2 = await self._http().get(result["data"]["url"], follow_redirects=False)
+            self._cookies = {
+                **dict(self._http().cookies),
+                **dict(resp.cookies),
+                **self._parse_set_cookie(resp2.headers),
+            }
+            logger.info("扫码登录成功，捕获 cookie keys=%s", list(self._cookies.keys()))
             result["cookies"] = self._cookies
         return result
+
+    @staticmethod
+    def _parse_set_cookie(headers: httpx.Headers) -> dict[str, str]:
+        """解析响应头里的 Set-Cookie（跨域 cookie 会被 jar 丢弃，这里手动提取）。"""
+        cookies: dict[str, str] = {}
+        for header in headers.get_list("set-cookie"):
+            name_value = header.split(";", 1)[0]
+            name, sep, value = name_value.partition("=")
+            if sep and name.strip():
+                cookies[name.strip()] = value.strip()
+        return cookies
 
     async def get_nav(self) -> dict[str, Any]:
         return await self._get_json(f"{self.API}/x/web-interface/nav")
@@ -165,7 +183,7 @@ class BilibiliClient:
     ) -> dict[str, Any]:
         data = await self._get_json(
             f"{self.API}/x/v3/fav/resource/list",
-            params={"media_id": fid, "pn": page, "ps": page_size},
+            params={"media_id": fid, "pn": page, "ps": page_size, "platform": "web"},
         )
         medias = list((data.get("medias") or []) if isinstance(data, dict) else [])
         return {
@@ -232,18 +250,27 @@ class BilibiliClient:
     # ------------------------------------------------------------------ 解析
     @staticmethod
     def _parse_video(v: dict[str, Any]) -> dict[str, Any]:
+        # 收藏夹接口字段与「稍后再看」不同：cover/upper/id/pubtime/attr
+        up = v.get("owner") or v.get("upper")
+        up = up if isinstance(up, dict) else {}
+        is_invalid = bool(v.get("invalid", 0))
+        if "attr" in v:
+            is_invalid = int(v.get("attr", 0)) != 0
         return {
             "bvid": v.get("bvid", ""),
-            "aid": int(v.get("aid", 0)),
+            "aid": int(v.get("aid") or v.get("id") or 0),
             "title": v.get("title", ""),
             "cover_url": v.get("pic", "") or v.get("cover", ""),
-            "up_name": (
-                v.get("owner", {}).get("name", "") if isinstance(v.get("owner"), dict) else ""
-            ),
-            "pubdate": v.get("pubdate", 0),
+            "up_name": up.get("name", ""),
+            "pubdate": v.get("pubdate") or v.get("pubtime") or v.get("ctime") or 0,
             "duration": int(v.get("duration", 0)),
-            "is_collection": bool(v.get("is_series", 0) or v.get("is_collection", 0)),
-            "is_invalid": bool(v.get("invalid", 0)),
+            "is_collection": (
+                int(v.get("page") or 0) > 1
+                or int(v.get("videos") or 0) > 1
+                or bool(v.get("is_series", 0) or v.get("is_collection", 0))
+            ),
+            "is_invalid": is_invalid,
+            "part_count": max(1, int(v.get("videos") or v.get("page") or 1)),
         }
 
     @staticmethod

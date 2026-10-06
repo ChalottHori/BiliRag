@@ -1,10 +1,52 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useChatStream } from '../hooks/useChatStream'
+import type { Source } from '../api/types'
 import type { ChatMessage } from '../stores/chat'
 import { useChatStore } from '../stores/chat'
 import Button from './ui/Button'
 import styles from './ChatWindow.module.css'
+
+function TraceLine({ message }: { message: ChatMessage }) {
+  const trace = message.trace
+  if (!trace) return null
+  const parts: string[] = []
+  const routeText = trace.label ?? trace.route
+  if (routeText) parts.push(`路由：${routeText}`)
+  if (trace.route === 'vector' && trace.retrieval) {
+    const r = trace.retrieval
+    parts.push(
+      `向量 ${r.vector_count} / 关键词 ${r.keyword_count} → 融合 ${r.final_count}（耗时 ${r.elapsed_ms}ms）`,
+    )
+  }
+  if (parts.length === 0) return null
+  return <div className={styles.traceLine}>{parts.join(' · ')}</div>
+}
+
+function SourceCards({ message }: { message: ChatMessage }) {
+  const sources: Source[] =
+    message.sources && message.sources.length > 0
+      ? message.sources
+      : (message.citations ?? []).map((c) => ({
+          bvid: c.bvid,
+          title: c.title,
+          url: `https://www.bilibili.com/video/${c.bvid}`,
+          snippet: c.snippet,
+        }))
+  if (sources.length === 0) return null
+  return (
+    <div className={styles.sources}>
+      {sources.map((src, i) => (
+        <a key={i} className={styles.sourceCard} href={src.url} target="_blank" rel="noreferrer">
+          <span className={styles.sourceTitle}>
+            [{i + 1}] {src.title}
+          </span>
+          {src.snippet && <span className={styles.sourceSnippet}>{src.snippet}</span>}
+        </a>
+      ))}
+    </div>
+  )
+}
 
 function ChatBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
@@ -14,15 +56,8 @@ function ChatBubble({ message }: { message: ChatMessage }) {
         {message.content}
         {message.streaming && <span className={styles.cursor}>▌</span>}
       </div>
-      {message.citations && message.citations.length > 0 && (
-        <div className={styles.citations}>
-          {message.citations.map((citation, i) => (
-            <span key={i} className={styles.citation}>
-              [{i + 1}] {citation.title}
-            </span>
-          ))}
-        </div>
-      )}
+      {!isUser && <TraceLine message={message} />}
+      {!isUser && <SourceCards message={message} />}
     </div>
   )
 }

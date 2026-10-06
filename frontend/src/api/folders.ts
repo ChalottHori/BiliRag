@@ -1,5 +1,5 @@
 import { post, request } from './client'
-import type { Folder, PartInfo } from './types'
+import type { Folder, ItemStatus, PartInfo } from './types'
 
 export interface VideoRow {
   bvid: string
@@ -11,6 +11,8 @@ export interface VideoRow {
   duration: number
   is_collection: boolean
   is_invalid: boolean
+  part_count?: number
+  parts_status?: Record<string, ItemStatus>
 }
 
 export function listFolders(): Promise<Folder[]> {

@@ -4,7 +4,7 @@ const LABELS: Record<string, string> = {
   pending: '待处理',
   transcribing: '转写中',
   summarizing: '总结中',
-  done: '已完成',
+  done: '已入库',
   failed: '失败',
 }
 

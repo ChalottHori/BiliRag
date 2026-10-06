@@ -32,6 +32,9 @@ scripts\start.bat
 cd backend
 pip install -r requirements.txt
 python run.py                       # http://127.0.0.1:8000
+# or
+.venv/Scripts/python.exe -m pip install -r requirements.txt   #虚拟环境启动后端
+.venv/Scripts/python.exe run.py
 
 # 前端（开发模式）
 cd frontend

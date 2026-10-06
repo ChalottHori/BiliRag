@@ -10,7 +10,6 @@ import styles from './AppShell.module.css'
 const NAV_ITEMS = [
   { to: '/folders', label: '收藏夹' },
   { to: '/import', label: '导入' },
-  { to: '/tasks', label: '任务' },
   { to: '/items', label: '知识库' },
   { to: '/history', label: '对话历史' },
 ]

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { listFolders } from '../api/folders'
 import { deleteItem, getItem, listItems } from '../api/items'
-import { collectionSummary, resummarizeItem } from '../api/summarize'
+import { collectionSummary, resummarizeItem, retryItem } from '../api/summarize'
 import Drawer from '../components/Drawer'
 import Pagination from '../components/Pagination'
 import StatusTag from '../components/StatusTag'
@@ -47,6 +47,11 @@ export default function ItemsPage() {
 
   const resummarizeMutation = useMutation({
     mutationFn: (id: string) => resummarizeItem(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
+  })
+
+  const retryMutation = useMutation({
+    mutationFn: (id: string) => retryItem(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
   })
 
@@ -108,6 +113,11 @@ export default function ItemsPage() {
             )}
             <pre className={styles.transcript}>{detail.transcript_snippet}</pre>
             <div className={styles.actions}>
+              {detail.status === 'failed' && (
+                <Button variant="secondary" onClick={() => retryMutation.mutate(detail.id)}>
+                  重试
+                </Button>
+              )}
               <Button variant="secondary" onClick={() => resummarizeMutation.mutate(detail.id)}>
                 重新总结
               </Button>

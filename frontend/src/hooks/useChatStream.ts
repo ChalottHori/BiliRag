@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { Citation } from '../api/types'
+import type { Citation, Source } from '../api/types'
 import { useChatStore } from '../stores/chat'
 
 interface StreamFrame {
@@ -7,6 +7,13 @@ interface StreamFrame {
   content?: string
   session_id?: string
   citations?: Citation[]
+  route?: string
+  label?: string
+  vector_count?: number
+  keyword_count?: number
+  final_count?: number
+  elapsed_ms?: number
+  items?: Source[]
 }
 
 /**
@@ -17,6 +24,8 @@ export function useChatStream() {
   const addMessage = useChatStore((s) => s.addMessage)
   const appendToLast = useChatStore((s) => s.appendToLast)
   const setLastCitations = useChatStore((s) => s.setLastCitations)
+  const setLastTrace = useChatStore((s) => s.setLastTrace)
+  const setLastSources = useChatStore((s) => s.setLastSources)
   const finishLastMessage = useChatStore((s) => s.finishLastMessage)
   const setStreaming = useChatStore((s) => s.setStreaming)
   const streaming = useChatStore((s) => s.streaming)
@@ -53,6 +62,22 @@ export function useChatStream() {
             try {
               const data = JSON.parse(payload) as StreamFrame
               if (data.type === 'delta' && data.content) appendToLast(data.content)
+              if (data.type === 'route' && data.route) {
+                setLastTrace({ route: data.route, label: data.label })
+              }
+              if (data.type === 'retrieval') {
+                setLastTrace({
+                  retrieval: {
+                    vector_count: data.vector_count ?? 0,
+                    keyword_count: data.keyword_count ?? 0,
+                    final_count: data.final_count ?? 0,
+                    elapsed_ms: data.elapsed_ms ?? 0,
+                  },
+                })
+              }
+              if (data.type === 'sources' && data.items) {
+                setLastSources(data.items)
+              }
               if (data.type === 'done') {
                 if (data.session_id) useChatStore.getState().setSessionId(data.session_id)
                 if (data.citations) setLastCitations(data.citations)
@@ -67,7 +92,15 @@ export function useChatStream() {
         setStreaming(false)
       }
     },
-    [addMessage, appendToLast, setLastCitations, finishLastMessage, setStreaming],
+    [
+      addMessage,
+      appendToLast,
+      setLastCitations,
+      setLastTrace,
+      setLastSources,
+      finishLastMessage,
+      setStreaming,
+    ],
   )
 
   return { send, streaming }

@@ -1,20 +1,14 @@
 import { post, request } from './client'
-
-export interface TaskProgress {
-  total: number
-  done: number
-  failed: number
-  active: string[]
-}
+import type { TaskSnapshot } from './types'
 
 export function summarize(
   targets: unknown[],
   folderId?: string | null,
-): Promise<{ created: number; item_ids: string[] }> {
+): Promise<{ created: number; item_ids: string[]; batch_id: string }> {
   return post('/api/summarize', { targets, folder_id: folderId ?? null })
 }
 
-export function getTasks(): Promise<TaskProgress> {
+export function getTasks(): Promise<TaskSnapshot> {
   return request('/api/tasks')
 }
 

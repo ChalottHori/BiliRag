@@ -143,6 +143,26 @@ def _seed_settings(engine: Engine) -> None:
         session.commit()
 
 
+def _migrate_schema(engine: Engine) -> None:
+    """幂等迁移：`create_all` 不会给已存在的表加列，这里补齐历史库缺失的列。"""
+    from sqlalchemy import inspect
+
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("item")}
+    if "batch_id" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE item ADD COLUMN batch_id VARCHAR(36)"))
+
+    settings_columns = {col["name"] for col in inspector.get_columns("settings")}
+    if "chat_use_llm_router" not in settings_columns:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE settings ADD COLUMN chat_use_llm_router BOOLEAN DEFAULT 0"
+                )
+            )
+
+
 def init_db() -> None:
     """启动建表：`create_all` 建普通表，再建 FTS5 虚拟表 + 触发器，并种入默认配置。"""
     from . import models  # noqa: F401  确保所有模型注册到 Base.metadata
@@ -150,4 +170,5 @@ def init_db() -> None:
     engine = get_engine()
     Base.metadata.create_all(engine)
     _create_fts5(engine)
+    _migrate_schema(engine)
     _seed_settings(engine)

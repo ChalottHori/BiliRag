@@ -50,7 +50,7 @@ export default function ImportPage() {
       )
       return confirmImport(targets, folderId || null)
     },
-    onSuccess: () => navigate('/tasks'),
+    onSuccess: () => navigate('/folders'),
   })
 
   const toggleBvid = (bvid: string) => {

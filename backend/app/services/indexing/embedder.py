@@ -9,6 +9,7 @@ import asyncio
 from typing import Any
 
 import httpx
+from langchain_core.embeddings import Embeddings
 
 
 class Embedder:
@@ -56,3 +57,20 @@ class Embedder:
             resp.raise_for_status()
             payload = resp.json()
         return [list(item["embedding"]) for item in payload["data"]]
+
+
+class LangChainEmbedding(Embeddings):
+    """把项目一 `Embedder` 包成 LangChain `Embeddings` 适配器。
+
+    委托现有 `Embedder.embed`，保证模型与归一化与存量向量一致，
+    存量向量无需重建索引。
+    """
+
+    def __init__(self, embedder: Embedder) -> None:
+        self._embedder = embedder
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._embedder.embed(texts)
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embedder.embed([text])[0]

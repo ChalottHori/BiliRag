@@ -48,9 +48,17 @@ def test_folders_list_has_uncategorized(client: TestClient) -> None:
 
 def test_folders_sync_and_videos(client: TestClient) -> None:
     assert client.post("/api/folders/sync").json()["count"] == 1
-    titles = [f["title"] for f in client.get("/api/folders").json()]
-    assert "默认收藏夹" in titles
-    assert client.get("/api/folders/1/videos").json()["total"] == 1
+    folders = client.get("/api/folders").json()
+    folder = next(f for f in folders if f["title"] == "默认收藏夹")
+    assert client.get(f"/api/folders/{folder['id']}/videos").json()["total"] == 1
+
+
+def test_folders_uncategorized_videos_empty(client: TestClient) -> None:
+    folders = client.get("/api/folders").json()
+    uncat = next(f for f in folders if f["kind"] == "uncategorized")
+    resp = client.get(f"/api/folders/{uncat['id']}/videos")
+    assert resp.status_code == 200
+    assert resp.json() == {"items": [], "total": 0}
 
 
 def test_import_parse_confirm_and_summarize(client: TestClient) -> None:
@@ -90,6 +98,11 @@ def test_chat_stream_and_history(client: TestClient) -> None:
     assert resp.status_code == 200
     assert '"delta"' in resp.text
     assert '"done"' in resp.text
+    # 无库内数据时路由到 direct，且仍推送 route / sources 事件
+    assert '"type": "route"' in resp.text
+    assert '"route": "direct"' in resp.text
+    assert '"label": "直接回答"' in resp.text
+    assert '"type": "sources"' in resp.text
 
     sessions = client.get("/api/chat/sessions").json()
     assert len(sessions) == 1
@@ -113,6 +126,33 @@ def test_chat_stream_and_history(client: TestClient) -> None:
     assert client.delete(f"/api/chat/sessions/{sid}").json()["status"] == "ok"
 
 
+def test_chat_vector_route_and_keyword_citation(client: TestClient) -> None:
+    # 入库一个标题命中的条目，让「量子」这类主题问题经 direct 纠偏进入 vector 检索。
+    resp = client.post(
+        "/api/summarize",
+        json={"targets": [{"bvid": "BV9", "cid": 9, "title": "量子力学"}]},
+    )
+    item_id = resp.json()["item_ids"][0]
+    client.app.state.task_queue.shutdown(wait=True)
+    assert client.get(f"/api/items/{item_id}").json()["status"] == "done"
+
+    resp = client.post("/api/chat", json={"question": "量子"})
+    assert resp.status_code == 200
+    text = resp.text
+    # 路由 + 检索 + 来源事件
+    assert '"route": "vector"' in text
+    assert '"label": "检索知识库"' in text
+    assert '"type": "retrieval"' in text
+    assert '"keyword_count": 1' in text
+    assert '"final_count": 1' in text
+    assert '"type": "sources"' in text
+    # citation 兼容 keyword 文档（带 item_id / bvid / title）
+    assert '"done"' in text
+    assert '"BV9"' in text
+    assert '"量子力学"' in text
+    assert f'"item_id": "{item_id}"' in text
+
+
 def test_export_markdown(client: TestClient) -> None:
     client.post(
         "/api/summarize",
@@ -123,3 +163,58 @@ def test_export_markdown(client: TestClient) -> None:
     result = client.post("/api/export/markdown", json={"all": True}).json()
     assert result["count"] == 1
     assert result["files"]
+
+
+def test_tasks_returns_snapshot_shape(client: TestClient) -> None:
+    snapshot = client.get("/api/tasks").json()
+    assert set(snapshot.keys()) == {"batch_id", "total", "done", "failed", "active", "items"}
+    assert snapshot["total"] == 0
+    assert snapshot["batch_id"] is None
+
+
+def test_summarize_returns_batch_id(client: TestClient) -> None:
+    resp = client.post(
+        "/api/summarize",
+        json={"targets": [{"bvid": "BV5", "cid": 5, "title": "t", "part_title": "p"}]},
+    )
+    assert resp.json()["batch_id"]
+    assert resp.json()["created"] == 1
+
+
+def test_tasks_snapshot_shows_failed_batch(client: TestClient) -> None:
+    from app.db import get_session_factory
+    from app.models import Item
+
+    resp = client.post(
+        "/api/summarize",
+        json={"targets": [{"bvid": "BV6", "cid": 6, "title": "t", "part_title": "p"}]},
+    )
+    item_id = resp.json()["item_ids"][0]
+    client.app.state.task_queue.shutdown(wait=True)
+
+    with get_session_factory()() as session:
+        item = session.get(Item, item_id)
+        item.status = "failed"
+        item.error_msg = "boom"
+        session.commit()
+
+    snapshot = client.get("/api/tasks").json()
+    assert snapshot["failed"] == 1
+    assert snapshot["total"] == 1
+    assert snapshot["items"][0]["status"] == "failed"
+    assert snapshot["items"][0]["error_msg"] == "boom"
+
+
+def test_folder_videos_enriched_with_status(client: TestClient) -> None:
+    client.post("/api/folders/sync")
+    client.post(
+        "/api/summarize",
+        json={"targets": [{"bvid": "BV1", "cid": 1, "title": "视频1", "part_title": "P1"}]},
+    )
+    client.app.state.task_queue.shutdown(wait=True)
+
+    folders = client.get("/api/folders").json()
+    folder = next(f for f in folders if f["title"] == "默认收藏夹")
+    videos = client.get(f"/api/folders/{folder['id']}/videos").json()["items"]
+    assert videos[0]["parts_status"]["1"]["status"] == "done"
+    assert videos[0]["parts_status"]["1"]["item_id"]

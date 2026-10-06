@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
@@ -60,11 +61,12 @@ async def confirm_import(
         folder = db.query(Folder).filter(Folder.kind == "uncategorized").first()
 
     targets = [{**t, "folder_id": folder.id if folder else None} for t in req.targets]
-    created = create_items(db, targets, source_type="link")
+    batch_id = str(uuid4())
+    created = create_items(db, targets, source_type="link", batch_id=batch_id)
 
     queue = getattr(request.app.state, "task_queue", None)
     item_ids = [item.id for item in created]
     if queue is not None:
         queue.enqueue_many(item_ids)
 
-    return {"created": len(created), "item_ids": item_ids}
+    return {"created": len(created), "item_ids": item_ids, "batch_id": batch_id}

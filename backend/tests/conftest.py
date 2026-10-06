@@ -98,7 +98,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(Embedder, "embed", lambda self, texts: [[0.1, 0.2, 0.3] for _ in texts])
     monkeypatch.setattr(VectorStore, "add", lambda self, *a, **k: None)
     monkeypatch.setattr(VectorStore, "delete", lambda self, *a, **k: None)
-    monkeypatch.setattr(VectorStore, "query", lambda self, *a, **k: [])
+    monkeypatch.setattr(VectorStore, "search_mmr", lambda self, *a, **k: [])
 
     # ---- LLM mock ----
     async def fake_stream(self, messages, model=None, temperature=0.0):

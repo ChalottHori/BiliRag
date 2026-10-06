@@ -15,6 +15,30 @@ export interface PartInfo {
   page: number
   part_title: string
   duration: number
+  item_status?: ItemStatus | null
+}
+
+export interface ItemStatus {
+  item_id: string
+  status: string
+  error_msg: string
+}
+
+export interface TaskItem {
+  item_id: string
+  title: string
+  part_title: string
+  status: string
+  error_msg: string
+}
+
+export interface TaskSnapshot {
+  batch_id: string | null
+  total: number
+  done: number
+  failed: number
+  active: number
+  items: TaskItem[]
 }
 
 export interface VideoInfo {
@@ -70,6 +94,26 @@ export interface Citation {
   title: string
   chunk_idx: number
   snippet: string
+}
+
+export interface Source {
+  bvid: string
+  title: string
+  url: string
+  snippet: string
+}
+
+export interface RetrievalTrace {
+  vector_count: number
+  keyword_count: number
+  final_count: number
+  elapsed_ms: number
+}
+
+export interface TraceStep {
+  route?: string
+  label?: string
+  retrieval?: RetrievalTrace
 }
 
 export interface ChatSession {

@@ -31,6 +31,7 @@ def get_config(db: Any = Depends(get_db)) -> SettingsRead:
         keep_audio=settings.keep_audio,
         chunk_size=settings.chunk_size,
         top_k=settings.top_k,
+        chat_use_llm_router=settings.chat_use_llm_router,
         embedding_provider=settings.embedding_provider,
         embedding_model=settings.embedding_model,
     )

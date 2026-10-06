@@ -18,7 +18,10 @@ def _to_datetime(pubdate: Any) -> datetime | None:
 
 
 def create_items(
-    session: Any, targets: list[dict[str, Any]], source_type: str = "folder"
+    session: Any,
+    targets: list[dict[str, Any]],
+    source_type: str = "folder",
+    batch_id: str | None = None,
 ) -> list[Item]:
     """按 target 创建 Video/Part/Item（`(bvid, cid)` 去重，重复跳过）。"""
     created: list[Item] = []
@@ -74,6 +77,7 @@ def create_items(
             duration=int(target.get("duration", 0)),
             source_type=source_type,
             folder_id=target.get("folder_id"),
+            batch_id=batch_id,
         )
         session.add(item)
         created.append(item)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getConfig, updateConfig } from '../api/config'
 import Button from '../components/ui/Button'
@@ -25,29 +25,39 @@ export default function SettingsPage() {
 
   const configQuery = useQuery({
     queryKey: ['config'],
-    queryFn: async () => {
-      const data = await getConfig()
-      setForm({
-        llm_base_url: data.llm_base_url,
-        llm_api_key: '',
-        llm_model: data.llm_model,
-        qa_llm_model: data.qa_llm_model,
-        asr_model: data.asr_model,
-        concurrency: data.concurrency,
-        export_dir: data.export_dir,
-        keep_audio: data.keep_audio,
-        chunk_size: data.chunk_size,
-        top_k: data.top_k,
-        embedding_provider: data.embedding_provider,
-        embedding_model: data.embedding_model,
-      })
-      return data
-    },
+    queryFn: getConfig,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
+
+  // 仅首次加载时用后端配置初始化表单；后续 refetch（如保存后）不再覆盖用户正在编辑的值
+  const initializedRef = useRef(false)
+  useEffect(() => {
+    const data = configQuery.data
+    if (!data || initializedRef.current) return
+    initializedRef.current = true
+    setForm({
+      llm_base_url: data.llm_base_url,
+      llm_api_key: '',
+      llm_model: data.llm_model,
+      qa_llm_model: data.qa_llm_model,
+      asr_model: data.asr_model,
+      concurrency: data.concurrency,
+      export_dir: data.export_dir,
+      keep_audio: data.keep_audio,
+      chunk_size: data.chunk_size,
+      top_k: data.top_k,
+      embedding_provider: data.embedding_provider,
+      embedding_model: data.embedding_model,
+    })
+  }, [configQuery.data])
 
   const saveMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => updateConfig(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['config'] }),
+    onSuccess: () => {
+      setForm((prev) => ({ ...prev, llm_api_key: '' }))
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
   })
 
   const set = (key: string, value: string | boolean | number) =>
@@ -102,13 +112,13 @@ export default function SettingsPage() {
                 onChange={(e) => set('llm_api_key', e.target.value)}
               />
             </Field>
-            <Field label="model">
+            <Field label="要点总结模型">
               <Input
                 value={String(form.llm_model ?? '')}
                 onChange={(e) => set('llm_model', e.target.value)}
               />
             </Field>
-            <Field label="qa_model">
+            <Field label="问答模型">
               <Input
                 value={String(form.qa_llm_model ?? '')}
                 onChange={(e) => set('qa_llm_model', e.target.value)}
@@ -123,9 +133,9 @@ export default function SettingsPage() {
               value={String(form.asr_model ?? 'medium')}
               onChange={(e) => set('asr_model', e.target.value)}
             >
-              <option value="small">small</option>
-              <option value="medium">medium</option>
-              <option value="large-v3">large-v3</option>
+              <option value="small" style={{ color: '#000' }}>small</option>
+              <option value="medium" style={{ color: '#000' }}>medium</option>
+              <option value="large-v3" style={{ color: '#000' }}>large-v3</option>
             </Select>
           </Field>
         )}
@@ -180,8 +190,8 @@ export default function SettingsPage() {
                 value={String(form.embedding_provider ?? 'local')}
                 onChange={(e) => set('embedding_provider', e.target.value)}
               >
-                <option value="local">local</option>
-                <option value="api">api</option>
+                <option value="local" style={{ color: '#000' }}>local</option>
+                <option value="api" style={{ color: '#000' }}>api</option>
               </Select>
             </Field>
             <Field label="模型">

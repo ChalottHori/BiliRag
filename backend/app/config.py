@@ -32,7 +32,8 @@ class Settings(BaseModel):
     export_dir: str = str(DEFAULT_DATA_DIR / "exports")
     keep_audio: bool = False
     chunk_size: int = 1000
-    top_k: int = 5
+    top_k: int = 8
+    chat_use_llm_router: bool = False
     embedding_provider: str = "local"
     embedding_model: str = "BAAI/bge-small-zh-v1.5"
 
@@ -79,6 +80,7 @@ _ENV_MAP: dict[str, str] = {
     "keep_audio": "KEEP_AUDIO",
     "chunk_size": "CHUNK_SIZE",
     "top_k": "TOP_K",
+    "chat_use_llm_router": "CHAT_USE_LLM_ROUTER",
     "embedding_provider": "EMBEDDING_PROVIDER",
     "embedding_model": "EMBEDDING_MODEL",
 }

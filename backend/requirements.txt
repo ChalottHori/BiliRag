@@ -15,6 +15,7 @@ cryptography
 
 # --- Vector / embedding ---
 chromadb
+langchain-chroma
 sentence-transformers
 
 # --- ASR ---
