@@ -9,6 +9,7 @@ import StatusTag from '../components/StatusTag'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
+import { formatItemTitle } from '../utils/format'
 import styles from './ItemsPage.module.css'
 
 export default function ItemsPage() {
@@ -87,7 +88,7 @@ export default function ItemsPage() {
             className={styles.row}
             onClick={() => setDetailId(item.id)}
           >
-            <div className={styles.title}>{item.part_title || item.title}</div>
+            <div className={styles.title}>{formatItemTitle(item.title, item.part_title)}</div>
             <StatusTag status={item.status} />
           </button>
         ))}
@@ -98,7 +99,7 @@ export default function ItemsPage() {
 
       <Drawer
         open={!!detailId}
-        title={detail ? detail.part_title || detail.title : '条目详情'}
+        title={detail ? formatItemTitle(detail.title, detail.part_title) : '条目详情'}
         onClose={() => setDetailId(null)}
       >
         {detail && (

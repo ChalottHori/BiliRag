@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getTasks, retryItem } from '../api/summarize'
+import { formatItemTitle } from '../utils/format'
 import StatusTag from './StatusTag'
 import styles from './TaskProgressPanel.module.css'
 
@@ -53,7 +54,7 @@ export default function TaskProgressPanel() {
         <ul className={styles.list}>
           {snapshot.items.map((item) => (
             <li key={item.item_id} className={styles.row}>
-              <span className={styles.title}>{item.part_title || item.title}</span>
+              <span className={styles.title}>{formatItemTitle(item.title, item.part_title)}</span>
               <StatusTag status={item.status} />
               {item.status === 'failed' && (
                 <>

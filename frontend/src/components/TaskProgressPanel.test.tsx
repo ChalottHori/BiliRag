@@ -62,4 +62,21 @@ describe('TaskProgressPanel', () => {
     fireEvent.click(await screen.findByText('重试'))
     expect(retryItem).toHaveBeenCalledWith('i2')
   })
+
+  it('shows video title, appending part title only when they differ', async () => {
+    getTasks.mockResolvedValue({
+      batch_id: 'b1',
+      total: 2,
+      done: 1,
+      failed: 1,
+      active: 0,
+      items: [
+        { item_id: 'i1', title: '视频A', part_title: 'P1 子标题', status: 'done', error_msg: '' },
+        { item_id: 'i2', title: '视频B', part_title: '视频B', status: 'failed', error_msg: 'boom' },
+      ],
+    })
+    renderPanel()
+    expect(await screen.findByText('视频A · P1 子标题')).toBeInTheDocument()
+    expect(await screen.findByText('视频B')).toBeInTheDocument()
+  })
 })
