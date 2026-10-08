@@ -15,7 +15,7 @@ export default function SelectionBar({ count, onStart, onClear }: SelectionBarPr
       <div className={styles.actions}>
         <Button onClick={onStart}>开始总结</Button>
         <Button variant="secondary" onClick={onClear}>
-          清空选择
+          清空范围
         </Button>
       </div>
     </div>

@@ -67,6 +67,8 @@ export default function FoldersPage() {
   const toggle = useSelectionStore((s) => s.toggle)
   const selectMany = useSelectionStore((s) => s.selectMany)
   const clear = useSelectionStore((s) => s.clear)
+  const selectedFolders = useSelectionStore((s) => s.selectedFolders)
+  const toggleFolder = useSelectionStore((s) => s.toggleFolder)
 
   const videoPanelWidth = useUiStore((s) => s.videoPanelWidth)
   const setVideoPanelWidth = useUiStore((s) => s.setVideoPanelWidth)
@@ -206,13 +208,22 @@ export default function FoldersPage() {
       <div className={styles.videoPanel} style={{ width: videoPanelWidth }}>
         <div className={styles.folderTabs}>
           {folders.map((folder) => (
-            <Chip
-              key={folder.id}
-              active={folder.id === activeFid}
-              onClick={() => setExplicitFid(folder.id)}
-            >
-              {folder.title}
-            </Chip>
+            <div key={folder.id} className={styles.folderTab}>
+              <Chip
+                active={folder.id === activeFid}
+                onClick={() => setExplicitFid(folder.id)}
+                className={selectedFolders[folder.id] ? styles.scoped : undefined}
+              >
+                {folder.title}
+              </Chip>
+              <label className={styles.scopeToggle} title="纳入检索范围">
+                <input
+                  type="checkbox"
+                  checked={Boolean(selectedFolders[folder.id])}
+                  onChange={() => toggleFolder({ id: folder.id, title: folder.title })}
+                />
+              </label>
+            </div>
           ))}
           <Button
             variant="ghost"

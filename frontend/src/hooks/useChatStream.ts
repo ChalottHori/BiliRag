@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { Citation, Source } from '../api/types'
+import type { ChatFilter, Citation, Source } from '../api/types'
 import { useChatStore } from '../stores/chat'
 
 interface StreamFrame {
@@ -31,7 +31,7 @@ export function useChatStream() {
   const streaming = useChatStore((s) => s.streaming)
 
   const send = useCallback(
-    async (question: string, sessionId?: string | null) => {
+    async (question: string, sessionId?: string | null, filter?: ChatFilter | null) => {
       addMessage({ role: 'user', content: question })
       addMessage({ role: 'assistant', content: '', streaming: true })
       setStreaming(true)
@@ -40,7 +40,7 @@ export function useChatStream() {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId ?? null, question }),
+          body: JSON.stringify({ session_id: sessionId ?? null, question, filter: filter ?? null }),
         })
         if (!res.ok || !res.body) throw new Error(`chat failed: ${res.status}`)
 

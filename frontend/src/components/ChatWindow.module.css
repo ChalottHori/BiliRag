@@ -42,6 +42,33 @@
   background: var(--glass-bg);
 }
 
+.scopeBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.scopeLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.scopeClear {
+  background: transparent;
+  border: none;
+  color: var(--brand);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.scopeClear:hover {
+  text-decoration: underline;
+}
+
 .messages {
   flex: 1;
   overflow-y: auto;

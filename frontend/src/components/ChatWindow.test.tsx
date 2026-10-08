@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useChatStore } from '../stores/chat'
+import { useSelectionStore } from '../stores/selection'
 import ChatWindow from './ChatWindow'
 
 function renderChatWindow() {
@@ -15,6 +16,7 @@ function renderChatWindow() {
 describe('ChatWindow', () => {
   beforeEach(() => {
     useChatStore.getState().reset()
+    useSelectionStore.getState().clear()
   })
 
   it('renders message bubbles from store', () => {
@@ -190,6 +192,62 @@ describe('ChatWindow', () => {
         snippet: '片段',
       },
     ])
+
+    vi.unstubAllGlobals()
+  })
+
+  it('shows full-library scope when nothing selected', () => {
+    renderChatWindow()
+    expect(screen.getByText('检索范围：全库')).toBeInTheDocument()
+    expect(screen.queryByText('回到全库')).not.toBeInTheDocument()
+  })
+
+  it('shows folder + video scope and clears back to full library', () => {
+    useSelectionStore.setState({
+      selectedFolders: { f1: { id: 'f1', title: 'A' } },
+      selected: {
+        'BV1:0': { bvid: 'BV1', cid: 0, title: 't', partTitle: '', coverUrl: '', upName: '', pubdate: 0, duration: 0 },
+        'BV2:0': { bvid: 'BV2', cid: 0, title: 't', partTitle: '', coverUrl: '', upName: '', pubdate: 0, duration: 0 },
+      },
+    })
+    renderChatWindow()
+    expect(screen.getByText('检索范围：收藏夹·A + 2 个视频')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('回到全库'))
+    expect(screen.getByText('检索范围：全库')).toBeInTheDocument()
+    expect(Object.keys(useSelectionStore.getState().selected)).toHaveLength(0)
+    expect(Object.keys(useSelectionStore.getState().selectedFolders)).toHaveLength(0)
+  })
+
+  it('passes scope filter in chat request body', async () => {
+    useSelectionStore.setState({
+      selectedFolders: { f1: { id: 'f1', title: 'A' } },
+    })
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('data: {"type":"delta","content":"答"}\n\n'))
+            controller.enqueue(new TextEncoder().encode('data: {"type":"done"}\n\n'))
+            controller.close()
+          },
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderChatWindow()
+    fireEvent.change(screen.getByPlaceholderText('输入问题…'), { target: { value: '问题' } })
+    fireEvent.click(screen.getByText('发送'))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled()
+    })
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/chat')
+    expect(JSON.parse(init.body).filter).toEqual({ folder_ids: ['f1'], bvids: [] })
 
     vi.unstubAllGlobals()
   })

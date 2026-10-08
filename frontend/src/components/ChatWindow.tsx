@@ -4,6 +4,7 @@ import { useChatStream } from '../hooks/useChatStream'
 import type { Source } from '../api/types'
 import type { ChatMessage } from '../stores/chat'
 import { useChatStore } from '../stores/chat'
+import { buildScopeFilter, useSelectionStore } from '../stores/selection'
 import Button from './ui/Button'
 import styles from './ChatWindow.module.css'
 
@@ -70,11 +71,21 @@ export default function ChatWindow() {
   const [input, setInput] = useState('')
   const navigate = useNavigate()
 
+  const selected = useSelectionStore((s) => s.selected)
+  const selectedFolders = useSelectionStore((s) => s.selectedFolders)
+
+  const folderTitles = Object.values(selectedFolders).map((f) => f.title)
+  const bvidCount = new Set(Object.values(selected).map((t) => t.bvid)).size
+  const scopeParts: string[] = []
+  if (folderTitles.length > 0) scopeParts.push(folderTitles.map((t) => `收藏夹·${t}`).join('、'))
+  if (bvidCount > 0) scopeParts.push(`${bvidCount} 个视频`)
+  const scopeLabel = scopeParts.length === 0 ? '全库' : scopeParts.join(' + ')
+
   const submit = () => {
     const question = input.trim()
     if (!question || streaming) return
     setInput('')
-    send(question, sessionId)
+    send(question, sessionId, buildScopeFilter())
   }
 
   return (
@@ -94,6 +105,19 @@ export default function ChatWindow() {
             ☰
           </button>
         </div>
+      </div>
+
+      <div className={styles.scopeBar}>
+        <span className={styles.scopeLabel}>检索范围：{scopeLabel}</span>
+        {scopeParts.length > 0 && (
+          <button
+            type="button"
+            className={styles.scopeClear}
+            onClick={() => useSelectionStore.getState().clear()}
+          >
+            回到全库
+          </button>
+        )}
       </div>
 
       <div className={styles.messages}>

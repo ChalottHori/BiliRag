@@ -97,28 +97,52 @@ def _to_datetime(value: Any) -> datetime:
 
 
 def _build_where(filter_dict: dict[str, Any] | None) -> dict[str, Any] | None:
+    """把 filter 转成 Chroma where：范围（收藏夹 ∪ 视频，并集）且时间区间。
+
+    收藏夹与视频两个维度是并集，用 `$or` 合成；时间范围与范围是 `$and`。
+    """
     if not filter_dict:
         return None
-    conditions: list[dict[str, Any]] = []
+
+    scope_conditions: list[dict[str, Any]] = []
     folder_ids = filter_dict.get("folder_ids")
     if folder_ids:
-        conditions.append({"folder_id": {"$in": list(folder_ids)}})
+        scope_conditions.append({"folder_id": {"$in": list(folder_ids)}})
+    bvids = filter_dict.get("bvids")
+    if bvids:
+        scope_conditions.append({"bvid": {"$in": list(bvids)}})
+
+    scope: dict[str, Any] | None = None
+    if len(scope_conditions) == 1:
+        scope = scope_conditions[0]
+    elif len(scope_conditions) > 1:
+        scope = {"$or": scope_conditions}
 
     time_from = filter_dict.get("time_from")
     time_to = filter_dict.get("time_to")
+    time_cond: dict[str, Any] | None = None
     if time_from or time_to:
         rng: dict[str, Any] = {}
         if time_from:
             rng["$gte"] = _to_ts(time_from)
         if time_to:
             rng["$lte"] = _to_ts(time_to)
-        conditions.append({"pubdate_ts": rng})
+        time_cond = {"pubdate_ts": rng}
 
-    if not conditions:
-        return None
-    if len(conditions) == 1:
-        return conditions[0]
-    return {"$and": conditions}
+    if scope and time_cond:
+        return {"$and": [scope, time_cond]}
+    return scope or time_cond
+
+
+def _apply_scope(query: Any, folder_ids: list[str] | None, bvids: list[str] | None) -> Any:
+    """按范围（收藏夹 ∪ 视频，并集）过滤查询；空范围 = 不限。"""
+    if folder_ids and bvids:
+        return query.filter(or_(Item.folder_id.in_(list(folder_ids)), Item.bvid.in_(list(bvids))))
+    if folder_ids:
+        return query.filter(Item.folder_id.in_(list(folder_ids)))
+    if bvids:
+        return query.filter(Item.bvid.in_(list(bvids)))
+    return query
 
 
 # ------------------------------------------------------------------ 路由规则（照搬项目二）
@@ -283,6 +307,7 @@ def _build_keyword_document(
 async def _keyword_search_docs(
     db: Any,
     folder_ids: list[str] | None,
+    bvids: list[str] | None,
     question: str,
     limit: int,
     filter_dict: dict[str, Any] | None = None,
@@ -303,8 +328,7 @@ async def _keyword_search_docs(
         like_conds.append(Item.transcript.ilike(pattern))
 
     query = db.query(Item).filter(Item.status == "done")
-    if folder_ids:
-        query = query.filter(Item.folder_id.in_(list(folder_ids)))
+    query = _apply_scope(query, folder_ids, bvids)
     query = query.filter(or_(*like_conds))
 
     if filter_dict:
@@ -347,6 +371,7 @@ async def _keyword_search_docs(
 async def _is_related_to_collection(
     db: Any,
     folder_ids: list[str] | None,
+    bvids: list[str] | None,
     question: str,
 ) -> bool:
     """判断问题是否与知识库内容相关（关键词 LIKE 命中标题/UP主/正文）。"""
@@ -361,8 +386,7 @@ async def _is_related_to_collection(
         like_conds.append(Item.up_name.ilike(pattern))
         like_conds.append(Item.transcript.ilike(pattern))
     query = db.query(Item).filter(Item.status == "done")
-    if folder_ids:
-        query = query.filter(Item.folder_id.in_(list(folder_ids)))
+    query = _apply_scope(query, folder_ids, bvids)
     return query.filter(or_(*like_conds)).count() > 0
 
 
@@ -372,6 +396,7 @@ async def _retrieve(
     question: str,
     db: Any,
     folder_ids: list[str] | None,
+    bvids: list[str] | None,
     filter_dict: dict[str, Any] | None,
 ) -> tuple[list[Document], int, int]:
     """混合检索：向量 MMR + SQLite 关键词并发召回，RRF 融合后返回 (docs, 向量数, 关键词数)。"""
@@ -392,7 +417,7 @@ async def _retrieve(
         _build_where(filter_dict),
     )
     keyword_task = _keyword_search_docs(
-        db, folder_ids, question, limit=RETRIEVAL_CANDIDATE_K, filter_dict=filter_dict
+        db, folder_ids, bvids, question, limit=RETRIEVAL_CANDIDATE_K, filter_dict=filter_dict
     )
     vector_docs, keyword_docs = await asyncio.gather(vector_task, keyword_task)
     docs = merge_ranked_documents(
@@ -437,24 +462,23 @@ def _build_citations(docs: list[Document], db: Any) -> list[dict[str, Any]]:
     return citations
 
 
-def _has_done_items(db: Any, folder_ids: list[str] | None) -> bool:
+def _has_done_items(db: Any, folder_ids: list[str] | None, bvids: list[str] | None = None) -> bool:
     query = db.query(Item).filter(Item.status == "done")
-    if folder_ids:
-        query = query.filter(Item.folder_id.in_(list(folder_ids)))
+    query = _apply_scope(query, folder_ids, bvids)
     return query.count() > 0
 
 
 def _get_db_list_context(
     db: Any,
     folder_ids: list[str] | None,
+    bvids: list[str] | None = None,
     limit: int = 50,
 ) -> tuple[str, list[dict[str, Any]]]:
     """列表路由上下文：标题/分P标题 + 概述（限 50 条），按 bvid 去重。"""
-    if not folder_ids:
+    if not folder_ids and not bvids:
         return "", []
     query = db.query(Item).filter(Item.status == "done")
-    if folder_ids:
-        query = query.filter(Item.folder_id.in_(list(folder_ids)))
+    query = _apply_scope(query, folder_ids, bvids)
     rows = query.limit(limit).all()
     if not rows:
         return "", []
@@ -486,13 +510,13 @@ def _get_db_list_context(
 def _get_db_content_context(
     db: Any,
     folder_ids: list[str] | None,
+    bvids: list[str] | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """汇总路由上下文：summary_json 的 overview + points 拼接，不限条数。"""
-    if not folder_ids:
+    if not folder_ids and not bvids:
         return "", []
     query = db.query(Item).filter(Item.status == "done")
-    if folder_ids:
-        query = query.filter(Item.folder_id.in_(list(folder_ids)))
+    query = _apply_scope(query, folder_ids, bvids)
     rows = query.all()
     if not rows:
         return "", []
@@ -601,11 +625,14 @@ async def _prepare_messages(
     folder_ids: list[str] = []
     if filter_dict and filter_dict.get("folder_ids"):
         folder_ids = list(filter_dict["folder_ids"])
+    bvids: list[str] = []
+    if filter_dict and filter_dict.get("bvids"):
+        bvids = list(filter_dict["bvids"])
 
-    has_data = _has_done_items(db, folder_ids)
+    has_data = _has_done_items(db, folder_ids, bvids)
     is_collection_intent = _is_collection_intent(question)
     is_general = _is_general_question(question)
-    if folder_ids and not is_general:
+    if (folder_ids or bvids) and not is_general:
         is_collection_intent = True
 
     route: str | None = None
@@ -624,7 +651,7 @@ async def _prepare_messages(
     # 无已入库数据兜底
     if not has_data:
         if is_collection_intent:
-            context, sources = _get_db_list_context(db, folder_ids, limit=50)
+            context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
             if not context:
                 context = "（暂无已入库的视频信息，请先入库）"
             return _build_fallback_messages(context, question), sources, []
@@ -638,12 +665,12 @@ async def _prepare_messages(
             route = "vector"
             _emit_progress(progress_callback, "route", route=route, label=_route_label(route))
         else:
-            related = await _is_related_to_collection(db, folder_ids, question)
+            related = await _is_related_to_collection(db, folder_ids, bvids, question)
             if related:
                 route = "vector"
                 _emit_progress(progress_callback, "route", route=route, label=_route_label(route))
             else:
-                title_context, _ = _get_db_list_context(db, folder_ids, limit=50)
+                title_context, _ = _get_db_list_context(db, folder_ids, bvids, limit=50)
                 messages = (
                     _build_direct_messages_with_context(title_context, question)
                     if title_context
@@ -652,7 +679,7 @@ async def _prepare_messages(
                 return messages, [], []
 
     if route == "direct":
-        title_context, _ = _get_db_list_context(db, folder_ids, limit=50)
+        title_context, _ = _get_db_list_context(db, folder_ids, bvids, limit=50)
         messages = (
             _build_direct_messages_with_context(title_context, question)
             if title_context
@@ -662,20 +689,20 @@ async def _prepare_messages(
 
     if route == "db_list":
         if not is_collection_intent:
-            related = await _is_related_to_collection(db, folder_ids, question)
+            related = await _is_related_to_collection(db, folder_ids, bvids, question)
             if not related:
                 return _build_direct_messages(question), [], []
-        context, sources = _get_db_list_context(db, folder_ids, limit=50)
+        context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
         if not context:
             return _build_fallback_messages("（暂无信息，请入库）", question), sources, []
         return _build_db_list_messages(context, question), sources, []
 
     if route == "db_content":
         if not is_collection_intent:
-            related = await _is_related_to_collection(db, folder_ids, question)
+            related = await _is_related_to_collection(db, folder_ids, bvids, question)
             if not related:
                 return _build_direct_messages(question), [], []
-        context, sources = _get_db_content_context(db, folder_ids)
+        context, sources = _get_db_content_context(db, folder_ids, bvids)
         if not context:
             return _build_fallback_messages("（暂无信息，请入库）", question), sources, []
         return _build_db_summary_messages(context, question), sources, []
@@ -683,7 +710,7 @@ async def _prepare_messages(
     # vector：混合检索
     recall_started = time.perf_counter()
     docs, vector_count, keyword_count = await _retrieve(
-        settings, question, db, folder_ids, filter_dict
+        settings, question, db, folder_ids, bvids, filter_dict
     )
     _emit_progress(
         progress_callback,
@@ -723,7 +750,7 @@ async def _prepare_messages(
         )
 
     # 检索空结果兜底
-    context, sources = _get_db_list_context(db, folder_ids, limit=50)
+    context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
     return _build_fallback_messages(context or "（暂无入库信息）", question), sources, []
 
 

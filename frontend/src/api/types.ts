@@ -103,6 +103,11 @@ export interface Source {
   snippet: string
 }
 
+export interface ChatFilter {
+  folder_ids?: string[]
+  bvids?: string[]
+}
+
 export interface RetrievalTrace {
   vector_count: number
   keyword_count: number
