@@ -125,10 +125,10 @@ def test_merge_rrf_score_and_order() -> None:
     b = _doc("2", "BV2")
     rankings = {"vector": [a], "keyword": [a, b]}
     merged = merge_ranked_documents(
-        rankings, top_k=2, channel_weights={"vector": 1.0, "keyword": 0.9}
+        rankings, top_k=2, channel_weights={"vector": 1.0, "keyword": 1.0}
     )
     assert merged == [a, b]
-    # a 在两个通道都是 rank1：1.0/61 + 0.9/61 > b 的 0.9/62
+    # a 在两个通道都是 rank1：1.0/61 + 1.0/61 > b 的 1.0/62
     assert a.metadata["retrieval_score"] > b.metadata["retrieval_score"]
 
 
