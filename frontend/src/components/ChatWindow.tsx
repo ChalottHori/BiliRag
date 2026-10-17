@@ -11,8 +11,25 @@ import styles from './ChatWindow.module.css'
 function TraceLine({ message }: { message: ChatMessage }) {
   const trace = message.trace
   if (!trace) return null
-  const parts: string[] = []
   const routeText = trace.label ?? trace.route
+  const steps = trace.steps ?? []
+
+  if (steps.length > 0) {
+    return (
+      <div className={styles.traceLine}>
+        {routeText && <div>路由：{routeText}</div>}
+        <ol className={styles.stepList}>
+          {steps.map((step, i) => (
+            <li key={i} className={step.kind === 'tool_call' ? styles.stepCall : styles.stepObs}>
+              {step.kind === 'tool_call' ? `🔍 ${step.label}` : `→ ${step.label}`}
+            </li>
+          ))}
+        </ol>
+      </div>
+    )
+  }
+
+  const parts: string[] = []
   if (routeText) parts.push(`路由：${routeText}`)
   if (trace.route === 'vector' && trace.retrieval) {
     const r = trace.retrieval

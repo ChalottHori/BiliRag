@@ -115,10 +115,17 @@ export interface RetrievalTrace {
   elapsed_ms: number
 }
 
+export interface AgentStep {
+  kind: 'tool_call' | 'observation'
+  tool: string
+  label: string
+}
+
 export interface TraceStep {
   route?: string
   label?: string
   retrieval?: RetrievalTrace
+  steps?: AgentStep[]
 }
 
 export interface ChatSession {
@@ -151,6 +158,7 @@ export interface Settings {
   keep_audio: boolean
   chunk_size: number
   top_k: number
+  chat_use_react: boolean
   embedding_provider: string
   embedding_model: string
 }

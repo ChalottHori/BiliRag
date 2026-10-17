@@ -14,6 +14,7 @@ interface StreamFrame {
   final_count?: number
   elapsed_ms?: number
   items?: Source[]
+  step?: { kind: 'tool_call' | 'observation'; tool: string; label: string }
 }
 
 /**
@@ -25,6 +26,7 @@ export function useChatStream() {
   const appendToLast = useChatStore((s) => s.appendToLast)
   const setLastCitations = useChatStore((s) => s.setLastCitations)
   const setLastTrace = useChatStore((s) => s.setLastTrace)
+  const appendLastStep = useChatStore((s) => s.appendLastStep)
   const setLastSources = useChatStore((s) => s.setLastSources)
   const finishLastMessage = useChatStore((s) => s.finishLastMessage)
   const setStreaming = useChatStore((s) => s.setStreaming)
@@ -78,6 +80,9 @@ export function useChatStream() {
               if (data.type === 'sources' && data.items) {
                 setLastSources(data.items)
               }
+              if (data.type === 'agent_step' && data.step) {
+                appendLastStep(data.step)
+              }
               if (data.type === 'done') {
                 if (data.session_id) useChatStore.getState().setSessionId(data.session_id)
                 if (data.citations) setLastCitations(data.citations)
@@ -97,6 +102,7 @@ export function useChatStream() {
       appendToLast,
       setLastCitations,
       setLastTrace,
+      appendLastStep,
       setLastSources,
       finishLastMessage,
       setStreaming,

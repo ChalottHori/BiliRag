@@ -130,6 +130,24 @@
   color: var(--text-muted);
 }
 
+.stepList {
+  list-style: none;
+  margin: var(--space-xs) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stepCall {
+  color: var(--text-secondary);
+}
+
+.stepObs {
+  color: var(--text-muted);
+  padding-left: var(--space-md);
+}
+
 .sources {
   display: flex;
   flex-direction: column;

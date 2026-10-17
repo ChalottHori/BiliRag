@@ -32,6 +32,7 @@ def get_config(db: Any = Depends(get_db)) -> SettingsRead:
         chunk_size=settings.chunk_size,
         top_k=settings.top_k,
         chat_use_llm_router=settings.chat_use_llm_router,
+        chat_use_react=settings.chat_use_react,
         embedding_provider=settings.embedding_provider,
         embedding_model=settings.embedding_model,
     )

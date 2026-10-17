@@ -157,10 +157,11 @@ def _migrate_schema(engine: Engine) -> None:
     if "chat_use_llm_router" not in settings_columns:
         with engine.begin() as conn:
             conn.execute(
-                text(
-                    "ALTER TABLE settings ADD COLUMN chat_use_llm_router BOOLEAN DEFAULT 0"
-                )
+                text("ALTER TABLE settings ADD COLUMN chat_use_llm_router BOOLEAN DEFAULT 0")
             )
+    if "chat_use_react" not in settings_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE settings ADD COLUMN chat_use_react BOOLEAN DEFAULT 0"))
 
 
 def init_db() -> None:

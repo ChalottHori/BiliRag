@@ -43,6 +43,8 @@ class LLMClient:
         temperature: float,
         stream: bool,
         max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": model or self.model,
@@ -52,6 +54,10 @@ class LLMClient:
         }
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
+        if tools is not None:
+            payload["tools"] = tools
+        if tool_choice is not None:
+            payload["tool_choice"] = tool_choice
         return payload
 
     async def complete(
@@ -67,6 +73,23 @@ class LLMClient:
         resp.raise_for_status()
         data = resp.json()
         return data["choices"][0]["message"]["content"]
+
+    async def complete_message(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float = 0.0,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
+    ) -> dict[str, Any]:
+        """非流式调用，返回完整 assistant message（含可能的 `tool_calls`）。"""
+        resp = await self._http().post(
+            self.endpoint,
+            json=self._payload(messages, model, temperature, False, None, tools, tool_choice),
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]
 
     async def stream_complete(
         self,

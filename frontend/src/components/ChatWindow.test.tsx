@@ -251,4 +251,71 @@ describe('ChatWindow', () => {
 
     vi.unstubAllGlobals()
   })
+
+  it('renders agent step list when trace has steps', () => {
+    useChatStore.setState({
+      messages: [
+        {
+          role: 'assistant',
+          content: '答案',
+          trace: {
+            route: 'vector',
+            label: '多步检索',
+            steps: [
+              { kind: 'tool_call', tool: 'search', label: '正在检索知识库「X」' },
+              { kind: 'observation', tool: 'search', label: '检索到 2 条片段' },
+            ],
+          },
+        },
+      ],
+    })
+    renderChatWindow()
+    expect(screen.getByText(/路由：多步检索/)).toBeInTheDocument()
+    expect(screen.getByText(/🔍 正在检索知识库「X」/)).toBeInTheDocument()
+    expect(screen.getByText(/→ 检索到 2 条片段/)).toBeInTheDocument()
+  })
+
+  it('parses agent_step frames into step list', async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder()
+        controller.enqueue(
+          encoder.encode('data: {"type":"route","route":"vector","label":"多步检索"}\n\n'),
+        )
+        controller.enqueue(
+          encoder.encode(
+            'data: {"type":"agent_step","step":{"kind":"tool_call","tool":"search","label":"正在检索"}}\n\n',
+          ),
+        )
+        controller.enqueue(
+          encoder.encode(
+            'data: {"type":"agent_step","step":{"kind":"observation","tool":"search","label":"检索到 1 条"}}\n\n',
+          ),
+        )
+        controller.enqueue(encoder.encode('data: {"type":"delta","content":"答案"}\n\n'))
+        controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'))
+        controller.close()
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream, { status: 200 })))
+
+    renderChatWindow()
+    fireEvent.change(screen.getByPlaceholderText('输入问题…'), { target: { value: '问题' } })
+    fireEvent.click(screen.getByText('发送'))
+
+    await waitFor(() => {
+      expect(screen.getByText('答案')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText(/🔍 正在检索/)).toBeInTheDocument()
+    expect(screen.getByText(/→ 检索到 1 条/)).toBeInTheDocument()
+
+    const messages = useChatStore.getState().messages
+    expect(messages[messages.length - 1].trace?.steps).toEqual([
+      { kind: 'tool_call', tool: 'search', label: '正在检索' },
+      { kind: 'observation', tool: 'search', label: '检索到 1 条' },
+    ])
+
+    vi.unstubAllGlobals()
+  })
 })

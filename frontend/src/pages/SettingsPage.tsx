@@ -47,6 +47,7 @@ export default function SettingsPage() {
       keep_audio: data.keep_audio,
       chunk_size: data.chunk_size,
       top_k: data.top_k,
+      chat_use_react: data.chat_use_react,
       embedding_provider: data.embedding_provider,
       embedding_model: data.embedding_model,
     })
@@ -70,6 +71,7 @@ export default function SettingsPage() {
       keep_audio: Boolean(form.keep_audio),
       chunk_size: Number(form.chunk_size),
       top_k: Number(form.top_k),
+      chat_use_react: Boolean(form.chat_use_react),
       embedding_provider: form.embedding_provider,
       embedding_model: form.embedding_model,
     }
@@ -122,6 +124,12 @@ export default function SettingsPage() {
               <Input
                 value={String(form.qa_llm_model ?? '')}
                 onChange={(e) => set('qa_llm_model', e.target.value)}
+              />
+            </Field>
+            <Field label="多步检索（ReAct）">
+              <Switch
+                checked={Boolean(form.chat_use_react)}
+                onCheckedChange={(v) => set('chat_use_react', v)}
               />
             </Field>
           </>

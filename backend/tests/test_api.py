@@ -218,3 +218,73 @@ def test_folder_videos_enriched_with_status(client: TestClient) -> None:
     videos = client.get(f"/api/folders/{folder['id']}/videos").json()["items"]
     assert videos[0]["parts_status"]["1"]["status"] == "done"
     assert videos[0]["parts_status"]["1"]["item_id"]
+
+
+def test_chat_react_agent_steps(client, monkeypatch) -> None:
+    from app.services.llm.client import LLMClient
+
+    client.put("/api/config", json={"chat_use_react": True})
+    resp = client.post(
+        "/api/summarize", json={"targets": [{"bvid": "BV9", "cid": 9, "title": "量子力学"}]}
+    )
+    item_id = resp.json()["item_ids"][0]
+    client.app.state.task_queue.shutdown(wait=True)
+    assert client.get(f"/api/items/{item_id}").json()["status"] == "done"
+
+    script = [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "search", "arguments": '{"query": "量子"}'},
+                }
+            ],
+        },
+        {"role": "assistant", "content": "ReAct 答案"},
+    ]
+
+    async def fake_complete_message(
+        self, messages, model=None, temperature=0.0, tools=None, tool_choice=None
+    ):
+        if tools is None:
+            return {"role": "assistant", "content": "ReAct 答案"}
+        return script.pop(0)
+
+    monkeypatch.setattr(LLMClient, "complete_message", fake_complete_message)
+
+    resp = client.post("/api/chat", json={"question": "量子"})
+    text = resp.text
+    assert '"type": "agent_step"' in text
+    assert '"kind": "tool_call"' in text
+    assert '"kind": "observation"' in text
+    assert '"label": "多步检索"' in text
+    assert '"type": "delta"' in text
+    assert '"type": "done"' in text
+
+
+def test_chat_react_falls_back_to_single_shot(client, monkeypatch) -> None:
+    from app.services.llm.client import LLMClient
+
+    client.put("/api/config", json={"chat_use_react": True})
+    resp = client.post(
+        "/api/summarize", json={"targets": [{"bvid": "BV9", "cid": 9, "title": "量子力学"}]}
+    )
+    item_id = resp.json()["item_ids"][0]
+    client.app.state.task_queue.shutdown(wait=True)
+    assert client.get(f"/api/items/{item_id}").json()["status"] == "done"
+
+    async def fake_complete_message(
+        self, messages, model=None, temperature=0.0, tools=None, tool_choice=None
+    ):
+        raise RuntimeError("tools unsupported")
+
+    monkeypatch.setattr(LLMClient, "complete_message", fake_complete_message)
+
+    resp = client.post("/api/chat", json={"question": "量子"})
+    text = resp.text
+    assert '"已回退单次检索"' in text
+    assert '"type": "delta"' in text
+    assert '"type": "done"' in text

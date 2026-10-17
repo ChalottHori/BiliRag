@@ -19,6 +19,7 @@ class SettingsUpdate(BaseModel):
     chunk_size: int | None = None
     top_k: int | None = None
     chat_use_llm_router: bool | None = None
+    chat_use_react: bool | None = None
     embedding_provider: str | None = None
     embedding_model: str | None = None
 
@@ -38,5 +39,6 @@ class SettingsRead(BaseModel):
     chunk_size: int = 1000
     top_k: int = 5
     chat_use_llm_router: bool = False
+    chat_use_react: bool = False
     embedding_provider: str = "local"
     embedding_model: str = "BAAI/bge-small-zh-v1.5"

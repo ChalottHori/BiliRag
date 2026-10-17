@@ -11,6 +11,7 @@ import json
 import re
 import time
 from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -28,6 +29,7 @@ from ..services.export import build_session_markdown
 from ..services.history import search_sessions
 from ..services.indexing import Embedder, VectorStore
 from ..services.llm import LLMClient
+from ..services.react import ToolFn, ToolOutcome, run_react
 from ..services.retrieval import (
     RETRIEVAL_CANDIDATE_K,
     RETRIEVAL_MMR_FETCH_K,
@@ -614,15 +616,125 @@ def _build_fallback_messages(context: str, question: str) -> list[dict[str, str]
     return [{"role": "system", "content": system}, {"role": "user", "content": question}]
 
 
+# ------------------------------------------------------------------ ReAct 工具
+def _get_item_by_bvid(
+    db: Any, folder_ids: list[str] | None, bvids: list[str] | None, bvid: str
+) -> Item | None:
+    query = db.query(Item).filter(Item.status == "done", Item.bvid == bvid)
+    query = _apply_scope(query, folder_ids, bvids)
+    return query.first()
+
+
+def _format_search_observation(docs: list[Document]) -> str:
+    if not docs:
+        return "（未检索到相关内容）"
+    parts: list[str] = []
+    for i, doc in enumerate(docs, 1):
+        title = (doc.metadata or {}).get("title", "")
+        parts.append(f"[{i}] 《{title}》\n{doc.page_content}")
+    return "\n\n".join(parts)
+
+
+def _build_react_tools(
+    db: Any,
+    settings: Settings,
+    folder_ids: list[str] | None,
+    bvids: list[str] | None,
+    filter_dict: dict[str, Any] | None,
+) -> dict[str, ToolFn]:
+    """构建 ReAct 三个工具的执行器（均继承 scope filter）。"""
+
+    async def search(args: dict[str, Any]) -> ToolOutcome:
+        query = (args.get("query") or "").strip()
+        if not query:
+            return ToolOutcome(observation="（空查询）")
+        docs, _vc, _kc = await _retrieve(settings, query, db, folder_ids, bvids, filter_dict)
+        for doc in docs:
+            meta = doc.metadata or {}
+            meta["title"] = _doc_title(db, doc)
+            doc.metadata = meta
+        return ToolOutcome(observation=_format_search_observation(docs), docs=docs)
+
+    async def read_summary(args: dict[str, Any]) -> ToolOutcome:
+        bvid = (args.get("bvid") or "").strip()
+        item = _get_item_by_bvid(db, folder_ids, bvids, bvid)
+        if item is None:
+            return ToolOutcome(observation=f"未找到视频 {bvid}")
+        title = item.part_title or item.title
+        summary = item.summary_json or {}
+        overview = summary.get("overview", "")
+        points = summary.get("points") or []
+        text = f"《{title}》\n概述：{overview}\n要点：" + "；".join(str(p) for p in points)
+        doc = Document(
+            page_content=text,
+            metadata={
+                "item_id": item.id,
+                "bvid": item.bvid,
+                "cid": item.cid,
+                "title": title,
+                "doc_type": "summary",
+                "url": f"https://www.bilibili.com/video/{item.bvid}",
+            },
+        )
+        return ToolOutcome(observation=_preview(text, 600), docs=[doc])
+
+    async def read_transcript(args: dict[str, Any]) -> ToolOutcome:
+        bvid = (args.get("bvid") or "").strip()
+        query = (args.get("query") or "").strip()
+        item = _get_item_by_bvid(db, folder_ids, bvids, bvid)
+        if item is None:
+            return ToolOutcome(observation=f"未找到视频 {bvid}")
+        title = item.part_title or item.title
+        embedder = Embedder(
+            model_name=settings.embedding_model,
+            provider=settings.embedding_provider,
+            base_url=settings.llm_base_url,
+            api_key=settings.llm_api_key,
+        )
+        store = VectorStore(path=settings.chroma_path, embedder=embedder)
+        docs = await asyncio.to_thread(
+            store.search_mmr,
+            query or title,
+            max(1, settings.top_k),
+            RETRIEVAL_MMR_FETCH_K,
+            RETRIEVAL_MMR_LAMBDA,
+            {"bvid": item.bvid},
+        )
+        for doc in docs:
+            meta = doc.metadata or {}
+            meta["title"] = title
+            meta["bvid"] = item.bvid
+            meta["cid"] = item.cid
+            meta["item_id"] = item.id
+            meta["url"] = f"https://www.bilibili.com/video/{item.bvid}"
+            doc.metadata = meta
+        return ToolOutcome(
+            observation=_format_search_observation(docs) or "（该视频无相关片段）",
+            docs=docs,
+        )
+
+    return {"search": search, "read_summary": read_summary, "read_transcript": read_transcript}
+
+
 # ------------------------------------------------------------------ 主流程
-async def _prepare_messages(
+@dataclass
+class _RouteDecision:
+    route: str
+    is_general: bool
+    is_collection_intent: bool
+    has_data: bool
+    folder_ids: list[str]
+    bvids: list[str]
+
+
+async def _decide_route(
     question: str,
     db: Any,
     settings: Settings,
     filter_dict: dict[str, Any] | None,
     progress_callback: ProgressCallback = None,
-) -> tuple[list[dict[str, str]], list[dict[str, Any]], list[dict[str, Any]]]:
-    """准备 LLM 消息、来源与引用；返回 (messages, sources, citations)。"""
+) -> _RouteDecision:
+    """路由判定（含 direct 纠偏），不执行任何分支的上下文抓取 / 检索。"""
     question = question.strip()
     folder_ids: list[str] = []
     if filter_dict and filter_dict.get("folder_ids"):
@@ -650,19 +762,8 @@ async def _prepare_messages(
 
     _emit_progress(progress_callback, "route", route=route, label=_route_label(route))
 
-    # 无已入库数据兜底
-    if not has_data:
-        if is_collection_intent:
-            context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
-            if not context:
-                context = "（暂无已入库的视频信息，请先入库）"
-            return _build_fallback_messages(context, question), sources, []
-        return _build_direct_messages(question), [], []
-
     # direct 纠偏：非寒暄问题若命中关键词则转入检索
-    if route == "direct":
-        if is_general:
-            return _build_direct_messages(question), [], []
+    if route == "direct" and has_data and not is_general:
         if is_collection_intent:
             route = "vector"
             _emit_progress(progress_callback, "route", route=route, label=_route_label(route))
@@ -671,16 +772,44 @@ async def _prepare_messages(
             if related:
                 route = "vector"
                 _emit_progress(progress_callback, "route", route=route, label=_route_label(route))
-            else:
-                title_context, _ = _get_db_list_context(db, folder_ids, bvids, limit=50)
-                messages = (
-                    _build_direct_messages_with_context(title_context, question)
-                    if title_context
-                    else _build_direct_messages(question)
-                )
-                return messages, [], []
+
+    return _RouteDecision(
+        route=route,
+        is_general=is_general,
+        is_collection_intent=is_collection_intent,
+        has_data=has_data,
+        folder_ids=folder_ids,
+        bvids=bvids,
+    )
+
+
+async def _execute_route(
+    decision: _RouteDecision,
+    question: str,
+    db: Any,
+    settings: Settings,
+    filter_dict: dict[str, Any] | None,
+    progress_callback: ProgressCallback = None,
+) -> tuple[list[dict[str, str]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """按已决策路由执行分支（无数据兜底 / direct / db_list / db_content / vector 单跳）。"""
+    route = decision.route
+    is_general = decision.is_general
+    is_collection_intent = decision.is_collection_intent
+    folder_ids = decision.folder_ids
+    bvids = decision.bvids
+
+    # 无已入库数据兜底
+    if not decision.has_data:
+        if is_collection_intent:
+            context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
+            if not context:
+                context = "（暂无已入库的视频信息，请先入库）"
+            return _build_fallback_messages(context, question), sources, []
+        return _build_direct_messages(question), [], []
 
     if route == "direct":
+        if is_general:
+            return _build_direct_messages(question), [], []
         title_context, _ = _get_db_list_context(db, folder_ids, bvids, limit=50)
         messages = (
             _build_direct_messages_with_context(title_context, question)
@@ -709,7 +838,7 @@ async def _prepare_messages(
             return _build_fallback_messages("（暂无信息，请入库）", question), sources, []
         return _build_db_summary_messages(context, question), sources, []
 
-    # vector：混合检索
+    # vector：混合检索（单跳）
     recall_started = time.perf_counter()
     docs, vector_count, keyword_count = await _retrieve(
         settings, question, db, folder_ids, bvids, filter_dict
@@ -725,7 +854,7 @@ async def _prepare_messages(
 
     if docs:
         context_parts: list[str] = []
-        sources: list[dict[str, Any]] = []
+        sources = []
         seen: set[str] = set()
         for doc in docs:
             title = _doc_title(db, doc)
@@ -754,6 +883,21 @@ async def _prepare_messages(
     # 检索空结果兜底
     context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
     return _build_fallback_messages(context or "（暂无入库信息）", question), sources, []
+
+
+async def _prepare_messages(
+    question: str,
+    db: Any,
+    settings: Settings,
+    filter_dict: dict[str, Any] | None,
+    progress_callback: ProgressCallback = None,
+    decision: _RouteDecision | None = None,
+) -> tuple[list[dict[str, str]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """准备 LLM 消息、来源与引用；返回 (messages, sources, citations)。"""
+    question = question.strip()
+    if decision is None:
+        decision = await _decide_route(question, db, settings, filter_dict, progress_callback)
+    return await _execute_route(decision, question, db, settings, filter_dict, progress_callback)
 
 
 def _load_history(db: Any, session_id: str, limit: int = 10) -> list[dict[str, str]]:
@@ -815,6 +959,7 @@ async def chat(req: ChatRequest, db: Any = Depends(get_db)) -> StreamingResponse
     session_id = session.id
 
     async def gen() -> AsyncIterator[str]:
+        question = req.question.strip()
         collected: list[str] = []
         progress_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
 
@@ -823,24 +968,78 @@ async def chat(req: ChatRequest, db: Any = Depends(get_db)) -> StreamingResponse
 
         try:
             with get_session_factory()() as db_session:
-                prepare_task = asyncio.create_task(
-                    _prepare_messages(
-                        req.question, db_session, settings, req.filter, progress_callback=report
-                    )
+                decision = await _decide_route(
+                    question, db_session, settings, req.filter, progress_callback=report
                 )
-                while not prepare_task.done():
-                    try:
-                        event = await asyncio.wait_for(progress_queue.get(), timeout=0.1)
-                        yield _sse(event)
-                    except TimeoutError:
-                        continue
                 while not progress_queue.empty():
                     yield _sse(progress_queue.get_nowait())
-                messages, sources, citations = await prepare_task
+
+                client = LLMClient(settings.llm_base_url, settings.llm_api_key, settings.llm_model)
+                use_react = (
+                    decision.route == "vector" and settings.chat_use_react and decision.has_data
+                )
+
+                if use_react:
+                    yield _sse({"type": "route", "route": "vector", "label": "多步检索"})
+                    tools = _build_react_tools(
+                        db_session, settings, decision.folder_ids, decision.bvids, req.filter
+                    )
+                    step_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+
+                    def on_step(step: dict[str, Any]) -> None:
+                        step_queue.put_nowait(step)
+
+                    react_task = asyncio.create_task(
+                        run_react(question, history, client, tools, on_step=on_step)
+                    )
+                    while not react_task.done():
+                        try:
+                            step = await asyncio.wait_for(step_queue.get(), timeout=0.1)
+                            yield _sse({"type": "agent_step", "step": step})
+                        except TimeoutError:
+                            continue
+                    while not step_queue.empty():
+                        yield _sse({"type": "agent_step", "step": step_queue.get_nowait()})
+                    outcome = await react_task
+
+                    if not outcome.fell_back:
+                        yield _sse({"type": "sources", "items": outcome.sources[:5]})
+                        yield _sse({"type": "delta", "content": outcome.answer})
+                        _save_assistant(session_id, outcome.answer, outcome.citations)
+                        yield _sse(
+                            {
+                                "type": "done",
+                                "session_id": session_id,
+                                "citations": outcome.citations,
+                            }
+                        )
+                        return
+
+                    # ReAct 失败 → 降级单跳
+                    yield _sse(
+                        {
+                            "type": "agent_step",
+                            "step": {
+                                "kind": "observation",
+                                "tool": "react",
+                                "label": "已回退单次检索",
+                            },
+                        }
+                    )
+
+                messages, sources, citations = await _prepare_messages(
+                    question,
+                    db_session,
+                    settings,
+                    req.filter,
+                    progress_callback=report,
+                    decision=decision,
+                )
+                while not progress_queue.empty():
+                    yield _sse(progress_queue.get_nowait())
 
             yield _sse({"type": "sources", "items": sources[:5]})
 
-            client = LLMClient(settings.llm_base_url, settings.llm_api_key, settings.llm_model)
             async for piece in client.stream_complete(_with_history(messages, history)):
                 collected.append(piece)
                 yield _sse({"type": "delta", "content": piece})
