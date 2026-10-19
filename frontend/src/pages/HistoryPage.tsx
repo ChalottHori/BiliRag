@@ -71,6 +71,7 @@ export default function HistoryPage() {
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.content,
         citations: m.citations_json ?? undefined,
+        verdict: m.verdict_json ?? undefined,
       })),
     })
     navigate('/folders')
@@ -125,6 +126,9 @@ export default function HistoryPage() {
                 >
                   <div className={styles.role}>{m.role === 'user' ? '你' : '助手'}</div>
                   <div>{m.content}</div>
+                  {m.verdict_json?.verdict === 'fail' && (
+                    <div className={styles.verdictTag}>⚠ 部分内容存疑</div>
+                  )}
                 </div>
               ))}
             </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useChatStream } from '../hooks/useChatStream'
-import type { Source } from '../api/types'
+import type { Source, VerificationIssue } from '../api/types'
 import type { ChatMessage } from '../stores/chat'
 import { useChatStore } from '../stores/chat'
 import { buildScopeFilter, useSelectionStore } from '../stores/selection'
@@ -41,6 +41,29 @@ function TraceLine({ message }: { message: ChatMessage }) {
   return <div className={styles.traceLine}>{parts.join(' · ')}</div>
 }
 
+function formatIssue(issue: VerificationIssue): string {
+  const reason = issue.reason ? `（${issue.reason}）` : ''
+  if (issue.type === 'fabricated_source') return `编造来源：${issue.source ?? ''}${reason}`
+  return `无支撑结论：${issue.claim ?? ''}${reason}`
+}
+
+function VerdictLine({ message }: { message: ChatMessage }) {
+  const verdict = message.verdict
+  if (!verdict || verdict.verdict !== 'fail') return null
+  return (
+    <details className={styles.verdict}>
+      <summary className={styles.verdictTitle}>⚠ 部分内容存疑</summary>
+      {verdict.issues.length > 0 && (
+        <ul className={styles.verdictIssues}>
+          {verdict.issues.map((issue, i) => (
+            <li key={i}>{formatIssue(issue)}</li>
+          ))}
+        </ul>
+      )}
+    </details>
+  )
+}
+
 function SourceCards({ message }: { message: ChatMessage }) {
   const sources: Source[] =
     message.sources && message.sources.length > 0
@@ -75,6 +98,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
         {message.streaming && <span className={styles.cursor}>▌</span>}
       </div>
       {!isUser && <TraceLine message={message} />}
+      {!isUser && <VerdictLine message={message} />}
       {!isUser && <SourceCards message={message} />}
     </div>
   )

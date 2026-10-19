@@ -128,6 +128,18 @@ export interface TraceStep {
   steps?: AgentStep[]
 }
 
+export interface VerificationIssue {
+  type: string
+  source?: string
+  claim?: string
+  reason?: string
+}
+
+export interface Verdict {
+  verdict: string
+  issues: VerificationIssue[]
+}
+
 export interface ChatSession {
   id: string
   title: string
@@ -143,6 +155,7 @@ export interface ChatMessage {
   role: string
   content: string
   citations_json: Citation[] | null
+  verdict_json: Verdict | null
   created_at: string
 }
 
@@ -159,6 +172,7 @@ export interface Settings {
   chunk_size: number
   top_k: number
   chat_use_react: boolean
+  chat_use_verification: boolean
   embedding_provider: string
   embedding_model: string
 }

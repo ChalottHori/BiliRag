@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { ChatFilter, Citation, Source } from '../api/types'
+import type { ChatFilter, Citation, Source, VerificationIssue } from '../api/types'
 import { useChatStore } from '../stores/chat'
 
 interface StreamFrame {
@@ -15,6 +15,8 @@ interface StreamFrame {
   elapsed_ms?: number
   items?: Source[]
   step?: { kind: 'tool_call' | 'observation'; tool: string; label: string }
+  verdict?: string
+  issues?: VerificationIssue[]
 }
 
 /**
@@ -28,6 +30,7 @@ export function useChatStream() {
   const setLastTrace = useChatStore((s) => s.setLastTrace)
   const appendLastStep = useChatStore((s) => s.appendLastStep)
   const setLastSources = useChatStore((s) => s.setLastSources)
+  const setLastVerdict = useChatStore((s) => s.setLastVerdict)
   const finishLastMessage = useChatStore((s) => s.finishLastMessage)
   const setStreaming = useChatStore((s) => s.setStreaming)
   const streaming = useChatStore((s) => s.streaming)
@@ -83,6 +86,9 @@ export function useChatStream() {
               if (data.type === 'agent_step' && data.step) {
                 appendLastStep(data.step)
               }
+              if (data.type === 'verification' && data.verdict) {
+                setLastVerdict({ verdict: data.verdict, issues: data.issues ?? [] })
+              }
               if (data.type === 'done') {
                 if (data.session_id) useChatStore.getState().setSessionId(data.session_id)
                 if (data.citations) setLastCitations(data.citations)
@@ -104,6 +110,7 @@ export function useChatStream() {
       setLastTrace,
       appendLastStep,
       setLastSources,
+      setLastVerdict,
       finishLastMessage,
       setStreaming,
     ],

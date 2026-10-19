@@ -48,6 +48,7 @@ export default function SettingsPage() {
       chunk_size: data.chunk_size,
       top_k: data.top_k,
       chat_use_react: data.chat_use_react,
+      chat_use_verification: data.chat_use_verification,
       embedding_provider: data.embedding_provider,
       embedding_model: data.embedding_model,
     })
@@ -72,6 +73,7 @@ export default function SettingsPage() {
       chunk_size: Number(form.chunk_size),
       top_k: Number(form.top_k),
       chat_use_react: Boolean(form.chat_use_react),
+      chat_use_verification: Boolean(form.chat_use_verification),
       embedding_provider: form.embedding_provider,
       embedding_model: form.embedding_model,
     }
@@ -132,6 +134,12 @@ export default function SettingsPage() {
                 onCheckedChange={(v) => set('chat_use_react', v)}
               />
             </Field>
+            <Field label="来源一致性校验">
+              <Switch
+                checked={Boolean(form.chat_use_verification)}
+                onCheckedChange={(v) => set('chat_use_verification', v)}
+              />
+            </Field>
           </>
         )}
 
@@ -141,9 +149,15 @@ export default function SettingsPage() {
               value={String(form.asr_model ?? 'medium')}
               onChange={(e) => set('asr_model', e.target.value)}
             >
-              <option value="small" style={{ color: '#000' }}>small</option>
-              <option value="medium" style={{ color: '#000' }}>medium</option>
-              <option value="large-v3" style={{ color: '#000' }}>large-v3</option>
+              <option value="small" style={{ color: '#000' }}>
+                small
+              </option>
+              <option value="medium" style={{ color: '#000' }}>
+                medium
+              </option>
+              <option value="large-v3" style={{ color: '#000' }}>
+                large-v3
+              </option>
             </Select>
           </Field>
         )}
@@ -198,8 +212,12 @@ export default function SettingsPage() {
                 value={String(form.embedding_provider ?? 'local')}
                 onChange={(e) => set('embedding_provider', e.target.value)}
               >
-                <option value="local" style={{ color: '#000' }}>local</option>
-                <option value="api" style={{ color: '#000' }}>api</option>
+                <option value="local" style={{ color: '#000' }}>
+                  local
+                </option>
+                <option value="api" style={{ color: '#000' }}>
+                  api
+                </option>
               </Select>
             </Field>
             <Field label="模型">

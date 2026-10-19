@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AgentStep, Citation, Source, TraceStep } from '../api/types'
+import type { AgentStep, Citation, Source, TraceStep, Verdict } from '../api/types'
 
 export interface ChatMessage {
   id?: string
@@ -8,6 +8,7 @@ export interface ChatMessage {
   citations?: Citation[]
   trace?: TraceStep
   sources?: Source[]
+  verdict?: Verdict
   streaming?: boolean
 }
 
@@ -22,6 +23,7 @@ interface ChatState {
   setLastTrace: (patch: Partial<TraceStep>) => void
   appendLastStep: (step: AgentStep) => void
   setLastSources: (sources: Source[]) => void
+  setLastVerdict: (verdict: Verdict) => void
   finishLastMessage: () => void
   setStreaming: (streaming: boolean) => void
   reset: () => void
@@ -73,6 +75,13 @@ export const useChatStore = create<ChatState>((set) => ({
       const messages = [...s.messages]
       const last = messages[messages.length - 1]
       if (last) messages[messages.length - 1] = { ...last, sources }
+      return { messages }
+    }),
+  setLastVerdict: (verdict) =>
+    set((s) => {
+      const messages = [...s.messages]
+      const last = messages[messages.length - 1]
+      if (last) messages[messages.length - 1] = { ...last, verdict }
       return { messages }
     }),
   finishLastMessage: () =>

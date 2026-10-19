@@ -210,3 +210,27 @@
 .input:focus {
   border-color: var(--brand);
 }
+
+.verdict {
+  margin-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: var(--radius-item);
+  font-size: 12px;
+}
+
+.verdictTitle {
+  color: var(--amber);
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.verdictIssues {
+  margin: var(--space-xs) 0 0;
+  padding-left: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-secondary);
+}

@@ -47,9 +47,7 @@ describe('ChatWindow', () => {
     })
     renderChatWindow()
     expect(screen.getByText(/路由：检索知识库/)).toBeInTheDocument()
-    expect(
-      screen.getByText(/向量 12 \/ 关键词 5 → 融合 8（耗时 320ms）/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/向量 12 \/ 关键词 5 → 融合 8（耗时 320ms）/)).toBeInTheDocument()
   })
 
   it('omits retrieval segment for non-vector route', () => {
@@ -171,9 +169,7 @@ describe('ChatWindow', () => {
     })
 
     expect(screen.getByText(/路由：检索知识库/)).toBeInTheDocument()
-    expect(
-      screen.getByText(/向量 12 \/ 关键词 5 → 融合 8（耗时 320ms）/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/向量 12 \/ 关键词 5 → 融合 8（耗时 320ms）/)).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /某视频/ })
     expect(link).toHaveAttribute('href', 'https://www.bilibili.com/video/BV1xx')
     expect(screen.getByText('片段')).toBeInTheDocument()
@@ -206,8 +202,26 @@ describe('ChatWindow', () => {
     useSelectionStore.setState({
       selectedFolders: { f1: { id: 'f1', title: 'A' } },
       selected: {
-        'BV1:0': { bvid: 'BV1', cid: 0, title: 't', partTitle: '', coverUrl: '', upName: '', pubdate: 0, duration: 0 },
-        'BV2:0': { bvid: 'BV2', cid: 0, title: 't', partTitle: '', coverUrl: '', upName: '', pubdate: 0, duration: 0 },
+        'BV1:0': {
+          bvid: 'BV1',
+          cid: 0,
+          title: 't',
+          partTitle: '',
+          coverUrl: '',
+          upName: '',
+          pubdate: 0,
+          duration: 0,
+        },
+        'BV2:0': {
+          bvid: 'BV2',
+          cid: 0,
+          title: 't',
+          partTitle: '',
+          coverUrl: '',
+          upName: '',
+          pubdate: 0,
+          duration: 0,
+        },
       },
     })
     renderChatWindow()
@@ -227,7 +241,9 @@ describe('ChatWindow', () => {
       new Response(
         new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode('data: {"type":"delta","content":"答"}\n\n'))
+            controller.enqueue(
+              new TextEncoder().encode('data: {"type":"delta","content":"答"}\n\n'),
+            )
             controller.enqueue(new TextEncoder().encode('data: {"type":"done"}\n\n'))
             controller.close()
           },
@@ -315,6 +331,64 @@ describe('ChatWindow', () => {
       { kind: 'tool_call', tool: 'search', label: '正在检索' },
       { kind: 'observation', tool: 'search', label: '检索到 1 条' },
     ])
+
+    vi.unstubAllGlobals()
+  })
+
+  it('renders verification warning for fail verdict', () => {
+    useChatStore.setState({
+      messages: [
+        {
+          role: 'assistant',
+          content: '答案',
+          verdict: {
+            verdict: 'fail',
+            issues: [{ type: 'fabricated_source', source: '《假视频》', reason: '不在检索结果中' }],
+          },
+        },
+      ],
+    })
+    renderChatWindow()
+    expect(screen.getByText('⚠ 部分内容存疑')).toBeInTheDocument()
+    expect(screen.getByText(/编造来源：《假视频》/)).toBeInTheDocument()
+  })
+
+  it('omits verification warning for pass verdict', () => {
+    useChatStore.setState({
+      messages: [{ role: 'assistant', content: '答案', verdict: { verdict: 'pass', issues: [] } }],
+    })
+    renderChatWindow()
+    expect(screen.queryByText('⚠ 部分内容存疑')).not.toBeInTheDocument()
+  })
+
+  it('parses verification frame into verdict', async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder()
+        controller.enqueue(
+          encoder.encode(
+            'data: {"type":"verification","verdict":"fail","issues":[{"type":"unsupported_claim","claim":"x","reason":"无证据"}]}\n\n',
+          ),
+        )
+        controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'))
+        controller.close()
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(stream, { status: 200 })))
+
+    renderChatWindow()
+    fireEvent.change(screen.getByPlaceholderText('输入问题…'), { target: { value: '问题' } })
+    fireEvent.click(screen.getByText('发送'))
+
+    await waitFor(() => {
+      expect(screen.getByText('⚠ 部分内容存疑')).toBeInTheDocument()
+    })
+
+    const messages = useChatStore.getState().messages
+    expect(messages[messages.length - 1].verdict).toEqual({
+      verdict: 'fail',
+      issues: [{ type: 'unsupported_claim', claim: 'x', reason: '无证据' }],
+    })
 
     vi.unstubAllGlobals()
   })
