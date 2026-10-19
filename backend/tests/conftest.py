@@ -105,7 +105,7 @@ def client(tmp_path, monkeypatch):
         yield "这是答案"
 
     async def fake_complete(self, messages, model=None, temperature=0.0, max_tokens=None):
-        return '{"title": "t", "overview": "o", "points": [], "keywords": []}'
+        return "这是答案"
 
     monkeypatch.setattr(LLMClient, "stream_complete", fake_stream)
     monkeypatch.setattr(LLMClient, "complete", fake_complete)

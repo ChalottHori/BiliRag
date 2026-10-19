@@ -99,6 +99,7 @@ class ReactOutcome:
     citations: list[dict[str, Any]]
     sources: list[dict[str, Any]]
     fell_back: bool = False
+    docs: list[Document] = field(default_factory=list)
 
 
 def _preview(text: str, max_length: int = 200) -> str:
@@ -198,6 +199,7 @@ def _finish(answer: str, doc_groups: list[list[Document]]) -> ReactOutcome:
         answer=answer,
         citations=_build_citations(docs),
         sources=_build_sources(docs),
+        docs=docs,
     )
 
 

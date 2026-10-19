@@ -34,4 +34,5 @@ class ChatMessage(Base):
     role: Mapped[str] = mapped_column(String(16), default="user")
     content: Mapped[str] = mapped_column(Text, default="")
     citations_json: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    verdict_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

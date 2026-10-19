@@ -35,6 +35,7 @@ class Settings(BaseModel):
     top_k: int = 8
     chat_use_llm_router: bool = False
     chat_use_react: bool = False
+    chat_use_verification: bool = True
     embedding_provider: str = "local"
     embedding_model: str = "BAAI/bge-small-zh-v1.5"
 
@@ -83,6 +84,7 @@ _ENV_MAP: dict[str, str] = {
     "top_k": "TOP_K",
     "chat_use_llm_router": "CHAT_USE_LLM_ROUTER",
     "chat_use_react": "CHAT_USE_REACT",
+    "chat_use_verification": "CHAT_USE_VERIFICATION",
     "embedding_provider": "EMBEDDING_PROVIDER",
     "embedding_model": "EMBEDDING_MODEL",
 }

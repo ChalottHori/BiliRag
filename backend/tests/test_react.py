@@ -99,6 +99,8 @@ def test_react_normal_multihop() -> None:
     assert [s["bvid"] for s in outcome.sources] == ["BV1"]
     # 两个不同 chunk 身份 -> 2 条引用
     assert len(outcome.citations) == 2
+    # docs 暴露给来源一致性校验作证据
+    assert len(outcome.docs) == 2
     assert [s["kind"] for s in steps] == ["tool_call", "observation", "tool_call", "observation"]
 
 

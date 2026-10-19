@@ -288,3 +288,53 @@ def test_chat_react_falls_back_to_single_shot(client, monkeypatch) -> None:
     assert '"已回退单次检索"' in text
     assert '"type": "delta"' in text
     assert '"type": "done"' in text
+
+
+def test_chat_verification_pass_frame_and_persist(client, monkeypatch) -> None:
+    import app.api.chat as chat_mod
+
+    async def fake_verify(question, answer, sources, evidence, verifier, model=None):
+        return {"verdict": "pass", "issues": []}
+
+    monkeypatch.setattr(chat_mod, "verify_answer", fake_verify)
+
+    client.post(
+        "/api/summarize", json={"targets": [{"bvid": "BV9", "cid": 9, "title": "量子力学"}]}
+    )
+    client.app.state.task_queue.shutdown(wait=True)
+
+    resp = client.post("/api/chat", json={"question": "量子"})
+    text = resp.text
+    assert '"type": "verification"' in text
+    assert '"verdict": "pass"' in text
+
+    sid = client.get("/api/chat/sessions").json()[0]["id"]
+    msgs = client.get(f"/api/chat/sessions/{sid}/messages").json()
+    assert msgs[-1]["verdict_json"] == {"verdict": "pass", "issues": []}
+
+
+def test_chat_verification_fail_persists(client, monkeypatch) -> None:
+    import app.api.chat as chat_mod
+
+    async def fake_verify(question, answer, sources, evidence, verifier, model=None):
+        return {
+            "verdict": "fail",
+            "issues": [{"type": "unsupported_claim", "claim": "x", "reason": "无证据"}],
+        }
+
+    monkeypatch.setattr(chat_mod, "verify_answer", fake_verify)
+
+    client.post(
+        "/api/summarize", json={"targets": [{"bvid": "BV9", "cid": 9, "title": "量子力学"}]}
+    )
+    client.app.state.task_queue.shutdown(wait=True)
+
+    resp = client.post("/api/chat", json={"question": "量子"})
+    text = resp.text
+    assert '"type": "verification"' in text
+    assert '"verdict": "fail"' in text
+    assert '"unsupported_claim"' in text
+
+    sid = client.get("/api/chat/sessions").json()[0]["id"]
+    msgs = client.get(f"/api/chat/sessions/{sid}/messages").json()
+    assert msgs[-1]["verdict_json"]["verdict"] == "fail"

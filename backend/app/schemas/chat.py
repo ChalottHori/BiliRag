@@ -22,4 +22,5 @@ class ChatMessageRead(ORMModel):
     role: str
     content: str
     citations_json: list[Any] | None
+    verdict_json: dict[str, Any] | None
     created_at: datetime

@@ -39,6 +39,7 @@ from ..services.retrieval import (
     keyword_score,
     merge_ranked_documents,
 )
+from ..services.verify import build_correction_feedback, verify_answer
 from .deps import get_db
 
 router = APIRouter(prefix="/api", tags=["chat"])
@@ -716,6 +717,85 @@ def _build_react_tools(
     return {"search": search, "read_summary": read_summary, "read_transcript": read_transcript}
 
 
+# ------------------------------------------------------------------ 来源一致性校验
+def _docs_to_sources(db: Any, docs: list[Document]) -> list[dict[str, Any]]:
+    """从检索文档建「有效来源」列表（{bvid, title}，按 bvid 去重）。"""
+    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    for doc in docs:
+        meta = doc.metadata or {}
+        bvid = meta.get("bvid", "")
+        if not bvid or bvid in seen:
+            continue
+        seen.add(bvid)
+        out.append({"bvid": bvid, "title": _doc_title(db, doc)})
+    return out
+
+
+def _docs_to_evidence(db: Any, docs: list[Document]) -> str:
+    """把检索文档拼成校验证据文本（与生成时看到的上下文同源）。"""
+    parts: list[str] = []
+    for doc in docs:
+        title = _doc_title(db, doc)
+        content = (doc.page_content or "").strip()
+        if content:
+            parts.append(f"【{title}】\n{content}")
+    return "\n\n---\n\n".join(parts)
+
+
+async def _verify_answer(
+    question: str, answer: str, docs: list[Document], db: Any, settings: Settings
+) -> dict[str, Any]:
+    """调用校验器，返回 {verdict, issues}；验证器异常 → unknown（fail-open）。"""
+    sources = _docs_to_sources(db, docs)
+    evidence = _docs_to_evidence(db, docs)
+    verifier = LLMClient(settings.llm_base_url, settings.llm_api_key, settings.llm_model)
+    model = settings.qa_llm_model or settings.llm_model
+    return await verify_answer(question, answer, sources, evidence, verifier, model=model)
+
+
+async def _regenerate(
+    question: str,
+    history: list[dict[str, str]],
+    docs: list[Document],
+    verdict: dict[str, Any],
+    db: Any,
+    settings: Settings,
+) -> str:
+    """带纠错反馈重生成一次（基于同一批检索证据）。"""
+    evidence = _docs_to_evidence(db, docs)
+    system = _build_rag_messages(evidence, question)[0]
+    correction = build_correction_feedback(verdict)
+    messages = [
+        system,
+        *history,
+        {"role": "user", "content": question},
+        {"role": "user", "content": correction},
+    ]
+    client = LLMClient(settings.llm_base_url, settings.llm_api_key, settings.llm_model)
+    return await client.complete(messages, model=settings.llm_model)
+
+
+async def _verify_and_correct(
+    question: str,
+    history: list[dict[str, str]],
+    answer: str,
+    docs: list[Document],
+    db: Any,
+    settings: Settings,
+) -> tuple[str, dict[str, Any] | None]:
+    """校验答案；失败则纠错重生成一次并复验。返回 (最终答案, verdict)。
+
+    verdict 为 unknown 表示验证器失败（fail-open），由调用方按未校验处理。
+    """
+    verdict = await _verify_answer(question, answer, docs, db, settings)
+    if verdict.get("verdict") == "fail":
+        corrected = await _regenerate(question, history, docs, verdict, db, settings)
+        verdict = await _verify_answer(question, corrected, docs, db, settings)
+        return corrected, verdict
+    return answer, verdict
+
+
 # ------------------------------------------------------------------ 主流程
 @dataclass
 class _RouteDecision:
@@ -790,8 +870,11 @@ async def _execute_route(
     settings: Settings,
     filter_dict: dict[str, Any] | None,
     progress_callback: ProgressCallback = None,
-) -> tuple[list[dict[str, str]], list[dict[str, Any]], list[dict[str, Any]]]:
-    """按已决策路由执行分支（无数据兜底 / direct / db_list / db_content / vector 单跳）。"""
+) -> tuple[list[dict[str, str]], list[dict[str, Any]], list[dict[str, Any]], list[Document]]:
+    """按已决策路由执行分支（无数据兜底 / direct / db_list / db_content / vector 单跳）。
+
+    第四项 `docs` 仅 vector 分支非空（供来源一致性校验作证据），其余分支为 []。
+    """
     route = decision.route
     is_general = decision.is_general
     is_collection_intent = decision.is_collection_intent
@@ -804,39 +887,39 @@ async def _execute_route(
             context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
             if not context:
                 context = "（暂无已入库的视频信息，请先入库）"
-            return _build_fallback_messages(context, question), sources, []
-        return _build_direct_messages(question), [], []
+            return _build_fallback_messages(context, question), sources, [], []
+        return _build_direct_messages(question), [], [], []
 
     if route == "direct":
         if is_general:
-            return _build_direct_messages(question), [], []
+            return _build_direct_messages(question), [], [], []
         title_context, _ = _get_db_list_context(db, folder_ids, bvids, limit=50)
         messages = (
             _build_direct_messages_with_context(title_context, question)
             if title_context
             else _build_direct_messages(question)
         )
-        return messages, [], []
+        return messages, [], [], []
 
     if route == "db_list":
         if not is_collection_intent:
             related = await _is_related_to_collection(db, folder_ids, bvids, question)
             if not related:
-                return _build_direct_messages(question), [], []
+                return _build_direct_messages(question), [], [], []
         context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
         if not context:
-            return _build_fallback_messages("（暂无信息，请入库）", question), sources, []
-        return _build_db_list_messages(context, question), sources, []
+            return _build_fallback_messages("（暂无信息，请入库）", question), sources, [], []
+        return _build_db_list_messages(context, question), sources, [], []
 
     if route == "db_content":
         if not is_collection_intent:
             related = await _is_related_to_collection(db, folder_ids, bvids, question)
             if not related:
-                return _build_direct_messages(question), [], []
+                return _build_direct_messages(question), [], [], []
         context, sources = _get_db_content_context(db, folder_ids, bvids)
         if not context:
-            return _build_fallback_messages("（暂无信息，请入库）", question), sources, []
-        return _build_db_summary_messages(context, question), sources, []
+            return _build_fallback_messages("（暂无信息，请入库）", question), sources, [], []
+        return _build_db_summary_messages(context, question), sources, [], []
 
     # vector：混合检索（单跳）
     recall_started = time.perf_counter()
@@ -878,11 +961,12 @@ async def _execute_route(
             _build_rag_messages("\n\n---\n\n".join(context_parts), question),
             sources,
             citations,
+            docs,
         )
 
     # 检索空结果兜底
     context, sources = _get_db_list_context(db, folder_ids, bvids, limit=50)
-    return _build_fallback_messages(context or "（暂无入库信息）", question), sources, []
+    return _build_fallback_messages(context or "（暂无入库信息）", question), sources, [], []
 
 
 async def _prepare_messages(
@@ -892,8 +976,8 @@ async def _prepare_messages(
     filter_dict: dict[str, Any] | None,
     progress_callback: ProgressCallback = None,
     decision: _RouteDecision | None = None,
-) -> tuple[list[dict[str, str]], list[dict[str, Any]], list[dict[str, Any]]]:
-    """准备 LLM 消息、来源与引用；返回 (messages, sources, citations)。"""
+) -> tuple[list[dict[str, str]], list[dict[str, Any]], list[dict[str, Any]], list[Document]]:
+    """准备 LLM 消息、来源、引用与检索文档；返回 (messages, sources, citations, docs)。"""
     question = question.strip()
     if decision is None:
         decision = await _decide_route(question, db, settings, filter_dict, progress_callback)
@@ -931,10 +1015,20 @@ def _get_or_create_session(db: Any, session_id: str | None, question: str) -> Ch
     return session
 
 
-def _save_assistant(session_id: str, answer: str, citations: list[dict[str, Any]]) -> None:
+def _save_assistant(
+    session_id: str,
+    answer: str,
+    citations: list[dict[str, Any]],
+    verdict: dict[str, Any] | None = None,
+) -> None:
+    verdict_json = verdict if (verdict and verdict.get("verdict") in ("pass", "fail")) else None
     with get_session_factory()() as session:
         message = ChatMessage(
-            session_id=session_id, role="assistant", content=answer, citations_json=citations
+            session_id=session_id,
+            role="assistant",
+            content=answer,
+            citations_json=citations,
+            verdict_json=verdict_json,
         )
         session.add(message)
         row = session.get(ChatSession, session_id)
@@ -960,8 +1054,8 @@ async def chat(req: ChatRequest, db: Any = Depends(get_db)) -> StreamingResponse
 
     async def gen() -> AsyncIterator[str]:
         question = req.question.strip()
-        collected: list[str] = []
         progress_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        verdict: dict[str, Any] | None = None
 
         def report(event: dict[str, Any]) -> None:
             progress_queue.put_nowait(event)
@@ -977,6 +1071,11 @@ async def chat(req: ChatRequest, db: Any = Depends(get_db)) -> StreamingResponse
                 client = LLMClient(settings.llm_base_url, settings.llm_api_key, settings.llm_model)
                 use_react = (
                     decision.route == "vector" and settings.chat_use_react and decision.has_data
+                )
+                use_verify = (
+                    settings.chat_use_verification
+                    and decision.route == "vector"
+                    and decision.has_data
                 )
 
                 if use_react:
@@ -1003,9 +1102,23 @@ async def chat(req: ChatRequest, db: Any = Depends(get_db)) -> StreamingResponse
                     outcome = await react_task
 
                     if not outcome.fell_back:
+                        answer = outcome.answer
+                        verdict = None
+                        if use_verify and outcome.docs:
+                            answer, verdict = await _verify_and_correct(
+                                question, history, answer, outcome.docs, db_session, settings
+                            )
                         yield _sse({"type": "sources", "items": outcome.sources[:5]})
-                        yield _sse({"type": "delta", "content": outcome.answer})
-                        _save_assistant(session_id, outcome.answer, outcome.citations)
+                        yield _sse({"type": "delta", "content": answer})
+                        if verdict and verdict.get("verdict") in ("pass", "fail"):
+                            yield _sse(
+                                {
+                                    "type": "verification",
+                                    "verdict": verdict["verdict"],
+                                    "issues": verdict.get("issues") or [],
+                                }
+                            )
+                        _save_assistant(session_id, answer, outcome.citations, verdict)
                         yield _sse(
                             {
                                 "type": "done",
@@ -1027,7 +1140,7 @@ async def chat(req: ChatRequest, db: Any = Depends(get_db)) -> StreamingResponse
                         }
                     )
 
-                messages, sources, citations = await _prepare_messages(
+                messages, sources, citations, docs = await _prepare_messages(
                     question,
                     db_session,
                     settings,
@@ -1038,13 +1151,25 @@ async def chat(req: ChatRequest, db: Any = Depends(get_db)) -> StreamingResponse
                 while not progress_queue.empty():
                     yield _sse(progress_queue.get_nowait())
 
-            yield _sse({"type": "sources", "items": sources[:5]})
+                # 单跳：缓冲生成 → 校验 → （必要时纠错）→ 输出
+                answer = await client.complete(_with_history(messages, history))
+                verdict = None
+                if use_verify and docs:
+                    answer, verdict = await _verify_and_correct(
+                        question, history, answer, docs, db_session, settings
+                    )
 
-            async for piece in client.stream_complete(_with_history(messages, history)):
-                collected.append(piece)
-                yield _sse({"type": "delta", "content": piece})
-            answer = "".join(collected)
-            _save_assistant(session_id, answer, citations)
+            yield _sse({"type": "sources", "items": sources[:5]})
+            yield _sse({"type": "delta", "content": answer})
+            if verdict and verdict.get("verdict") in ("pass", "fail"):
+                yield _sse(
+                    {
+                        "type": "verification",
+                        "verdict": verdict["verdict"],
+                        "issues": verdict.get("issues") or [],
+                    }
+                )
+            _save_assistant(session_id, answer, citations, verdict)
             yield _sse({"type": "done", "session_id": session_id, "citations": citations})
         except Exception as exc:  # noqa: BLE001
             yield _sse({"type": "error", "error": str(exc)})

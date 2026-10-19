@@ -162,6 +162,16 @@ def _migrate_schema(engine: Engine) -> None:
     if "chat_use_react" not in settings_columns:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE settings ADD COLUMN chat_use_react BOOLEAN DEFAULT 0"))
+    if "chat_use_verification" not in settings_columns:
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE settings ADD COLUMN chat_use_verification BOOLEAN DEFAULT 1")
+            )
+
+    message_columns = {col["name"] for col in inspector.get_columns("chat_message")}
+    if "verdict_json" not in message_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE chat_message ADD COLUMN verdict_json JSON"))
 
 
 def init_db() -> None:

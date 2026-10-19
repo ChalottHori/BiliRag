@@ -25,5 +25,6 @@ class Setting(Base):
     top_k: Mapped[int] = mapped_column(Integer, default=5)
     chat_use_llm_router: Mapped[bool] = mapped_column(Boolean, default=False)
     chat_use_react: Mapped[bool] = mapped_column(Boolean, default=False)
+    chat_use_verification: Mapped[bool] = mapped_column(Boolean, default=True)
     embedding_provider: Mapped[str] = mapped_column(String(16), default="local")
     embedding_model: Mapped[str] = mapped_column(Text, default="BAAI/bge-small-zh-v1.5")
