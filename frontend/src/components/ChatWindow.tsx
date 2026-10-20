@@ -104,13 +104,16 @@ function ChatBubble({ message }: { message: ChatMessage }) {
   )
 }
 
-export default function ChatWindow() {
+export default function ChatWindow({ running = false }: { running?: boolean }) {
   const messages = useChatStore((s) => s.messages)
   const sessionId = useChatStore((s) => s.sessionId)
   const reset = useChatStore((s) => s.reset)
   const { send, streaming } = useChatStream()
   const [input, setInput] = useState('')
   const navigate = useNavigate()
+
+  const busy = running || streaming
+  const busyReason = streaming ? '回答生成中，检索范围已锁定' : '入库任务进行中，暂不可操作'
 
   const selected = useSelectionStore((s) => s.selected)
   const selectedFolders = useSelectionStore((s) => s.selectedFolders)
@@ -151,13 +154,16 @@ export default function ChatWindow() {
       <div className={styles.scopeBar}>
         <span className={styles.scopeLabel}>检索范围：{scopeLabel}</span>
         {scopeParts.length > 0 && (
-          <button
-            type="button"
-            className={styles.scopeClear}
-            onClick={() => useSelectionStore.getState().clear()}
-          >
-            回到全库
-          </button>
+          <span className={styles.scopeClearWrap} title={busy ? busyReason : undefined}>
+            <button
+              type="button"
+              className={styles.scopeClear}
+              disabled={busy}
+              onClick={() => useSelectionStore.getState().clear()}
+            >
+              回到全库
+            </button>
+          </span>
         )}
       </div>
 
@@ -182,7 +188,7 @@ export default function ChatWindow() {
           placeholder="输入问题…"
           rows={2}
         />
-        <Button onClick={submit} disabled={streaming}>
+        <Button onClick={submit} disabled={busy} title={busy ? busyReason : undefined}>
           发送
         </Button>
       </div>

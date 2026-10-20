@@ -16,6 +16,10 @@
   cursor: not-allowed;
 }
 
+.disabledWrap {
+  display: inline-flex;
+}
+
 .primary {
   background: var(--brand);
   color: var(--brand-text);

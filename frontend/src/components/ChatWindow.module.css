@@ -69,6 +69,15 @@
   text-decoration: underline;
 }
 
+.scopeClear:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.scopeClearWrap {
+  display: inline-flex;
+}
+
 .messages {
   flex: 1;
   overflow-y: auto;

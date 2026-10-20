@@ -98,6 +98,15 @@
   background: var(--glass-bg);
 }
 
+.retry:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.retryWrap {
+  display: inline-flex;
+}
+
 .doneBanner {
   margin-top: var(--space-md);
   padding: var(--space-sm) var(--space-md);

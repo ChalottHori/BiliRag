@@ -34,6 +34,28 @@ describe('VideoRow', () => {
     expect(screen.getByLabelText('选择 失效视频')).toBeDisabled()
   })
 
+  it('disables checkbox and retry while locked', () => {
+    const onRetry = vi.fn()
+    render(
+      <VideoRow
+        video={{
+          bvid: 'BV1',
+          title: '锁定视频',
+          coverUrl: '',
+          upName: 'UP',
+          duration: 60,
+          partCount: 1,
+          partsStatus: { '10': { item_id: 'i2', status: 'failed', error_msg: 'boom' } },
+        }}
+        disabled
+        disabledReason="入库任务进行中"
+        onRetry={onRetry}
+      />,
+    )
+    expect(screen.getByLabelText('选择 锁定视频')).toBeDisabled()
+    expect(screen.getByText('重试')).toBeDisabled()
+  })
+
   it('formats duration correctly', () => {
     expect(formatDuration(75)).toBe('01:15')
     expect(formatDuration(3600)).toBe('60:00')

@@ -21,6 +21,10 @@
   cursor: not-allowed;
 }
 
+.checkboxWrap {
+  display: inline-flex;
+}
+
 .thumb {
   width: 96px;
   height: 54px;
@@ -102,6 +106,10 @@
 
 .retryBtn:hover {
   background: var(--glass-bg);
+}
+
+.retryWrap {
+  display: inline-flex;
 }
 
 .parts {

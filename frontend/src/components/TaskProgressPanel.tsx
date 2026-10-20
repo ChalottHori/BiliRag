@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getTasks, retryItem } from '../api/summarize'
+import { useChatStore } from '../stores/chat'
 import { formatItemTitle } from '../utils/format'
 import StatusTag from './StatusTag'
 import styles from './TaskProgressPanel.module.css'
@@ -9,6 +10,11 @@ import styles from './TaskProgressPanel.module.css'
 export default function TaskProgressPanel() {
   const queryClient = useQueryClient()
   const { data } = useQuery({ queryKey: ['tasks'], queryFn: getTasks, refetchInterval: 3000 })
+
+  const streaming = useChatStore((s) => s.streaming)
+  const running = (data?.active ?? 0) > 0
+  const busy = running || streaming
+  const busyReason = streaming ? '回答生成中，检索范围已锁定' : '入库任务进行中，暂不可操作'
 
   const [hiddenBatch, setHiddenBatch] = useState<string | null>(null)
   const [justDone, setJustDone] = useState(false)
@@ -29,6 +35,27 @@ export default function TaskProgressPanel() {
   const handleRetry = async (itemId: string) => {
     await retryItem(itemId)
     queryClient.invalidateQueries({ queryKey: ['tasks'] })
+  }
+
+  const retryButton = (itemId: string) => {
+    const btn = (
+      <button
+        type="button"
+        className={styles.retry}
+        disabled={busy}
+        onClick={() => handleRetry(itemId)}
+      >
+        重试
+      </button>
+    )
+    if (busy) {
+      return (
+        <span className={styles.retryWrap} title={busyReason}>
+          {btn}
+        </span>
+      )
+    }
+    return btn
   }
 
   if (snapshot && hiddenBatch !== snapshot.batch_id) {
@@ -59,13 +86,7 @@ export default function TaskProgressPanel() {
               {item.status === 'failed' && (
                 <>
                   <span className={styles.error}>{item.error_msg}</span>
-                  <button
-                    type="button"
-                    className={styles.retry}
-                    onClick={() => handleRetry(item.item_id)}
-                  >
-                    重试
-                  </button>
+                  {retryButton(item.item_id)}
                 </>
               )}
             </li>

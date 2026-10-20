@@ -12,6 +12,8 @@ import Button from '../components/ui/Button'
 import Chip from '../components/ui/Chip'
 import { useResizable } from '../hooks/useResizable'
 import { useTaskProgress } from '../hooks/useTaskProgress'
+import { useTasksRunning } from '../hooks/useTasksRunning'
+import { useChatStore } from '../stores/chat'
 import { useSelectionStore, type SelectionTarget } from '../stores/selection'
 import { useUiStore } from '../stores/ui'
 import styles from './FoldersPage.module.css'
@@ -62,6 +64,11 @@ export default function FoldersPage() {
   const [loadingBvids, setLoadingBvids] = useState<Set<string>>(new Set())
 
   const { event } = useTaskProgress()
+
+  const running = useTasksRunning()
+  const streaming = useChatStore((s) => s.streaming)
+  const busy = running || streaming
+  const busyReason = streaming ? '回答生成中，检索范围已锁定' : '入库任务进行中，暂不可操作'
 
   const selected = useSelectionStore((s) => s.selected)
   const toggle = useSelectionStore((s) => s.toggle)
@@ -216,10 +223,11 @@ export default function FoldersPage() {
               >
                 {folder.title}
               </Chip>
-              <label className={styles.scopeToggle} title="纳入检索范围">
+              <label className={styles.scopeToggle} title={busy ? busyReason : '纳入检索范围'}>
                 <input
                   type="checkbox"
                   checked={Boolean(selectedFolders[folder.id])}
+                  disabled={busy}
                   onChange={() => toggleFolder({ id: folder.id, title: folder.title })}
                 />
               </label>
@@ -235,10 +243,11 @@ export default function FoldersPage() {
         </div>
 
         <div className={styles.toolbar}>
-          <label className={styles.selectAll}>
+          <label className={styles.selectAll} title={busy ? busyReason : undefined}>
             <input
               type="checkbox"
               checked={allSelected}
+              disabled={busy}
               ref={(el) => {
                 if (el) el.indeterminate = !allSelected && someSelected
               }}
@@ -271,6 +280,8 @@ export default function FoldersPage() {
               selectedCids={selectedPartCids(video.bvid)}
               onTogglePart={(part) => toggle(partTarget(video, part))}
               onRetry={handleRetry}
+              disabled={busy}
+              disabledReason={busyReason}
             />
           ))}
           {videos.length === 0 && <div className={styles.empty}>暂无视频</div>}
@@ -278,7 +289,13 @@ export default function FoldersPage() {
 
         <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
 
-        <SelectionBar count={selectedCount} onStart={startSummarize} onClear={clear} />
+        <SelectionBar
+          count={selectedCount}
+          onStart={startSummarize}
+          onClear={clear}
+          disabled={busy}
+          disabledReason={busyReason}
+        />
 
         <TaskProgressPanel />
       </div>
@@ -286,7 +303,7 @@ export default function FoldersPage() {
       <div className={styles.divider} onMouseDown={handleDividerMouseDown} />
 
       <div className={styles.chatPanel}>
-        <ChatWindow />
+        <ChatWindow running={running} />
       </div>
     </div>
   )

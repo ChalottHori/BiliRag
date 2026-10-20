@@ -5,10 +5,10 @@ import { useChatStore } from '../stores/chat'
 import { useSelectionStore } from '../stores/selection'
 import ChatWindow from './ChatWindow'
 
-function renderChatWindow() {
+function renderChatWindow(running?: boolean) {
   return render(
     <MemoryRouter>
-      <ChatWindow />
+      <ChatWindow running={running} />
     </MemoryRouter>,
   )
 }
@@ -231,6 +231,18 @@ describe('ChatWindow', () => {
     expect(screen.getByText('检索范围：全库')).toBeInTheDocument()
     expect(Object.keys(useSelectionStore.getState().selected)).toHaveLength(0)
     expect(Object.keys(useSelectionStore.getState().selectedFolders)).toHaveLength(0)
+  })
+
+  it('disables send button while a task is running', () => {
+    renderChatWindow(true)
+    expect(screen.getByText('发送')).toBeDisabled()
+  })
+
+  it('disables back-to-full-library while streaming', () => {
+    useChatStore.setState({ streaming: true })
+    useSelectionStore.setState({ selectedFolders: { f1: { id: 'f1', title: 'A' } } })
+    renderChatWindow()
+    expect(screen.getByText('回到全库')).toBeDisabled()
   })
 
   it('passes scope filter in chat request body', async () => {

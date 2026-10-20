@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useChatStore } from '../stores/chat'
 import TaskProgressPanel from './TaskProgressPanel'
 
 const { getTasks, retryItem } = vi.hoisted(() => ({
@@ -23,10 +24,18 @@ describe('TaskProgressPanel', () => {
   beforeEach(() => {
     getTasks.mockReset()
     retryItem.mockReset()
+    useChatStore.getState().reset()
   })
 
   it('renders nothing when there is no batch', () => {
-    getTasks.mockResolvedValue({ batch_id: null, total: 0, done: 0, failed: 0, active: 0, items: [] })
+    getTasks.mockResolvedValue({
+      batch_id: null,
+      total: 0,
+      done: 0,
+      failed: 0,
+      active: 0,
+      items: [],
+    })
     const { container } = renderPanel()
     expect(container).toBeEmptyDOMElement()
   })
@@ -55,12 +64,46 @@ describe('TaskProgressPanel', () => {
       done: 0,
       failed: 1,
       active: 0,
-      items: [{ item_id: 'i2', title: '视频', part_title: 'P2', status: 'failed', error_msg: 'boom' }],
+      items: [
+        { item_id: 'i2', title: '视频', part_title: 'P2', status: 'failed', error_msg: 'boom' },
+      ],
     })
     retryItem.mockResolvedValue({ status: 'ok' })
     renderPanel()
     fireEvent.click(await screen.findByText('重试'))
     expect(retryItem).toHaveBeenCalledWith('i2')
+  })
+
+  it('disables retry while a task is running', async () => {
+    getTasks.mockResolvedValue({
+      batch_id: 'b1',
+      total: 2,
+      done: 0,
+      failed: 1,
+      active: 1,
+      items: [
+        { item_id: 'i1', title: '视频', part_title: 'P1', status: 'transcribing', error_msg: '' },
+        { item_id: 'i2', title: '视频', part_title: 'P2', status: 'failed', error_msg: 'boom' },
+      ],
+    })
+    renderPanel()
+    expect(await screen.findByText('重试')).toBeDisabled()
+  })
+
+  it('disables retry while a chat answer is streaming', async () => {
+    useChatStore.setState({ streaming: true })
+    getTasks.mockResolvedValue({
+      batch_id: 'b1',
+      total: 1,
+      done: 0,
+      failed: 1,
+      active: 0,
+      items: [
+        { item_id: 'i2', title: '视频', part_title: 'P2', status: 'failed', error_msg: 'boom' },
+      ],
+    })
+    renderPanel()
+    expect(await screen.findByText('重试')).toBeDisabled()
   })
 
   it('shows video title, appending part title only when they differ', async () => {

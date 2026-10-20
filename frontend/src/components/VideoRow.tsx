@@ -25,6 +25,8 @@ interface VideoRowProps {
   selectedCids?: Set<number>
   onTogglePart?: (part: PartInfo) => void
   onRetry?: (itemId: string) => void
+  disabled?: boolean
+  disabledReason?: string
 }
 
 export default function VideoRow({
@@ -35,6 +37,8 @@ export default function VideoRow({
   selectedCids,
   onTogglePart,
   onRetry,
+  disabled,
+  disabledReason,
 }: VideoRowProps) {
   const [expanded, setExpanded] = useState(false)
 
@@ -48,6 +52,27 @@ export default function VideoRow({
     const next = !expanded
     setExpanded(next)
     if (next) onExpand?.()
+  }
+
+  const retryButton = (itemId: string) => {
+    const btn = (
+      <button
+        type="button"
+        className={styles.retryBtn}
+        disabled={disabled}
+        onClick={() => onRetry?.(itemId)}
+      >
+        重试
+      </button>
+    )
+    if (disabled && disabledReason) {
+      return (
+        <span className={styles.retryWrap} title={disabledReason}>
+          {btn}
+        </span>
+      )
+    }
+    return btn
   }
 
   const renderVideoStatus = () => {
@@ -70,15 +95,7 @@ export default function VideoRow({
       return (
         <div className={styles.statusRow}>
           <StatusTag status="failed" />
-          {onRetry && (
-            <button
-              type="button"
-              className={styles.retryBtn}
-              onClick={() => onRetry(singleStatus.item_id)}
-            >
-              重试
-            </button>
-          )}
+          {onRetry && retryButton(singleStatus.item_id)}
         </div>
       )
     }
@@ -97,14 +114,16 @@ export default function VideoRow({
   return (
     <div className={video.isInvalid ? styles.invalid : ''}>
       <div className={styles.row}>
-        <input
-          type="checkbox"
-          className={styles.checkbox}
-          checked={checked}
-          disabled={video.isInvalid}
-          onChange={(e) => onToggle?.(e.target.checked)}
-          aria-label={`选择 ${video.title}`}
-        />
+        <span className={styles.checkboxWrap} title={disabled ? disabledReason : undefined}>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={checked}
+            disabled={video.isInvalid || disabled}
+            onChange={(e) => onToggle?.(e.target.checked)}
+            aria-label={`选择 ${video.title}`}
+          />
+        </span>
         <img className={styles.thumb} src={video.coverUrl} alt="" referrerPolicy="no-referrer" />
         <div className={styles.meta}>
           <div className={styles.title}>{video.title}</div>
@@ -128,13 +147,19 @@ export default function VideoRow({
             return (
               <div key={part.cid} className={styles.partRow}>
                 {onTogglePart && (
-                  <input
-                    type="checkbox"
-                    className={styles.checkbox}
-                    checked={checked || (selectedCids?.has(part.cid) ?? false)}
-                    onChange={() => onTogglePart(part)}
-                    aria-label={`选择 ${video.title} P${part.page}`}
-                  />
+                  <span
+                    className={styles.checkboxWrap}
+                    title={disabled ? disabledReason : undefined}
+                  >
+                    <input
+                      type="checkbox"
+                      className={styles.checkbox}
+                      checked={checked || (selectedCids?.has(part.cid) ?? false)}
+                      disabled={disabled}
+                      onChange={() => onTogglePart(part)}
+                      aria-label={`选择 ${video.title} P${part.page}`}
+                    />
+                  </span>
                 )}
                 <span className={styles.partTitle}>
                   P{part.page} · {part.part_title}
@@ -144,15 +169,7 @@ export default function VideoRow({
                 {status?.status === 'failed' && (
                   <>
                     <StatusTag status="failed" />
-                    {onRetry && (
-                      <button
-                        type="button"
-                        className={styles.retryBtn}
-                        onClick={() => onRetry(status.item_id)}
-                      >
-                        重试
-                      </button>
-                    )}
+                    {onRetry && retryButton(status.item_id)}
                   </>
                 )}
               </div>
