@@ -22,15 +22,21 @@ const keyOf = (t: SelectionTarget) => `${t.bvid}:${t.cid}`
 interface SelectionState {
   selected: Record<string, SelectionTarget>
   selectedFolders: Record<string, FolderScope>
+  timeFrom: string
+  timeTo: string
   toggle: (target: SelectionTarget) => void
   selectMany: (targets: SelectionTarget[]) => void
   toggleFolder: (folder: FolderScope) => void
   clear: () => void
+  setTimeRange: (from: string, to: string) => void
+  clearTime: () => void
 }
 
 export const useSelectionStore = create<SelectionState>((set) => ({
   selected: {},
   selectedFolders: {},
+  timeFrom: '',
+  timeTo: '',
   toggle: (target) =>
     set((s) => {
       const next = { ...s.selected }
@@ -53,16 +59,30 @@ export const useSelectionStore = create<SelectionState>((set) => ({
       return { selectedFolders: next }
     }),
   clear: () => set({ selected: {}, selectedFolders: {} }),
+  setTimeRange: (from, to) => set({ timeFrom: from, timeTo: to }),
+  clearTime: () => set({ timeFrom: '', timeTo: '' }),
 }))
 
 export function selectedCount(): number {
   return Object.keys(useSelectionStore.getState().selected).length
 }
 
-export function buildScopeFilter(): { folder_ids: string[]; bvids: string[] } | null {
-  const { selected, selectedFolders } = useSelectionStore.getState()
+export interface ScopeFilter {
+  folder_ids: string[]
+  bvids: string[]
+  time_from?: string
+  time_to?: string
+}
+
+export function buildScopeFilter(): ScopeFilter | null {
+  const { selected, selectedFolders, timeFrom, timeTo } = useSelectionStore.getState()
   const folder_ids = Object.keys(selectedFolders)
   const bvids = [...new Set(Object.values(selected).map((t) => t.bvid))]
-  if (folder_ids.length === 0 && bvids.length === 0) return null
-  return { folder_ids, bvids }
+  const time_from = timeFrom || ''
+  const time_to = timeTo ? `${timeTo}T23:59:59` : ''
+  if (folder_ids.length === 0 && bvids.length === 0 && !time_from && !time_to) return null
+  const filter: ScopeFilter = { folder_ids, bvids }
+  if (time_from) filter.time_from = time_from
+  if (time_to) filter.time_to = time_to
+  return filter
 }

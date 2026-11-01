@@ -106,6 +106,8 @@ export interface Source {
 export interface ChatFilter {
   folder_ids?: string[]
   bvids?: string[]
+  time_from?: string
+  time_to?: string
 }
 
 export interface RetrievalTrace {

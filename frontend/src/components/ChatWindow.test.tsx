@@ -280,6 +280,45 @@ describe('ChatWindow', () => {
     vi.unstubAllGlobals()
   })
 
+  it('passes time range in chat request body and clears time', async () => {
+    useSelectionStore.getState().setTimeRange('2026-10-01', '2026-10-27')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('data: {"type":"done"}\n\n'))
+            controller.close()
+          },
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderChatWindow()
+    expect(screen.getByText(/检索范围：2026-10-01 ~ 2026-10-27/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByPlaceholderText('输入问题…'), { target: { value: '问题' } })
+    fireEvent.click(screen.getByText('发送'))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled()
+    })
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect(JSON.parse(init.body).filter).toEqual({
+      folder_ids: [],
+      bvids: [],
+      time_from: '2026-10-01',
+      time_to: '2026-10-27T23:59:59',
+    })
+
+    fireEvent.click(screen.getByText('清除时间'))
+    expect(screen.getByText('检索范围：全库')).toBeInTheDocument()
+
+    vi.unstubAllGlobals()
+  })
+
   it('renders agent step list when trace has steps', () => {
     useChatStore.setState({
       messages: [

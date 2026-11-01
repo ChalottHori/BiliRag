@@ -6,7 +6,10 @@ function target(bvid: string, cid = 1) {
 }
 
 describe('selection store', () => {
-  beforeEach(() => useSelectionStore.getState().clear())
+  beforeEach(() => {
+    useSelectionStore.getState().clear()
+    useSelectionStore.getState().clearTime()
+  })
 
   it('toggles selection on and off', () => {
     useSelectionStore.getState().toggle(target('BV1'))
@@ -43,5 +46,37 @@ describe('selection store', () => {
     expect(buildScopeFilter()?.bvids).toEqual(['BV1', 'BV2'])
     useSelectionStore.getState().toggleFolder({ id: 'f1', title: 'A' })
     expect(buildScopeFilter()).toEqual({ folder_ids: ['f1'], bvids: ['BV1', 'BV2'] })
+  })
+
+  it('buildScopeFilter returns time range when only time is set', () => {
+    useSelectionStore.getState().setTimeRange('2026-10-01', '2026-10-27')
+    expect(buildScopeFilter()).toEqual({
+      folder_ids: [],
+      bvids: [],
+      time_from: '2026-10-01',
+      time_to: '2026-10-27T23:59:59',
+    })
+  })
+
+  it('buildScopeFilter includes all fields for folder + time', () => {
+    useSelectionStore.getState().toggleFolder({ id: 'f1', title: 'A' })
+    useSelectionStore.getState().setTimeRange('2026-10-01', '2026-10-27')
+    expect(buildScopeFilter()).toEqual({
+      folder_ids: ['f1'],
+      bvids: [],
+      time_from: '2026-10-01',
+      time_to: '2026-10-27T23:59:59',
+    })
+  })
+
+  it('buildScopeFilter returns null when all fields are empty', () => {
+    expect(buildScopeFilter()).toBeNull()
+  })
+
+  it('buildScopeFilter is not null with only time set and no folder/video', () => {
+    useSelectionStore.getState().setTimeRange('2026-10-01', '')
+    const filter = buildScopeFilter()
+    expect(filter).not.toBeNull()
+    expect(filter).toEqual({ folder_ids: [], bvids: [], time_from: '2026-10-01' })
   })
 })

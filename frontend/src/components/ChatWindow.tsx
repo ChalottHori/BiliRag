@@ -117,12 +117,17 @@ export default function ChatWindow({ running = false }: { running?: boolean }) {
 
   const selected = useSelectionStore((s) => s.selected)
   const selectedFolders = useSelectionStore((s) => s.selectedFolders)
+  const timeFrom = useSelectionStore((s) => s.timeFrom)
+  const timeTo = useSelectionStore((s) => s.timeTo)
 
   const folderTitles = Object.values(selectedFolders).map((f) => f.title)
   const bvidCount = new Set(Object.values(selected).map((t) => t.bvid)).size
+  const hasScope = folderTitles.length > 0 || bvidCount > 0
+  const hasTime = Boolean(timeFrom || timeTo)
   const scopeParts: string[] = []
   if (folderTitles.length > 0) scopeParts.push(folderTitles.map((t) => `收藏夹·${t}`).join('、'))
   if (bvidCount > 0) scopeParts.push(`${bvidCount} 个视频`)
+  if (hasTime) scopeParts.push(`${timeFrom || '…'} ~ ${timeTo || '…'}`)
   const scopeLabel = scopeParts.length === 0 ? '全库' : scopeParts.join(' + ')
 
   const submit = () => {
@@ -153,18 +158,51 @@ export default function ChatWindow({ running = false }: { running?: boolean }) {
 
       <div className={styles.scopeBar}>
         <span className={styles.scopeLabel}>检索范围：{scopeLabel}</span>
-        {scopeParts.length > 0 && (
-          <span className={styles.scopeClearWrap} title={busy ? busyReason : undefined}>
-            <button
-              type="button"
-              className={styles.scopeClear}
-              disabled={busy}
-              onClick={() => useSelectionStore.getState().clear()}
-            >
-              回到全库
-            </button>
-          </span>
-        )}
+        <div className={styles.scopeControls}>
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={timeFrom}
+            aria-label="开始日期"
+            disabled={busy}
+            title={busy ? busyReason : undefined}
+            onChange={(e) => useSelectionStore.getState().setTimeRange(e.target.value, timeTo)}
+          />
+          <span className={styles.dateSeparator}>~</span>
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={timeTo}
+            aria-label="结束日期"
+            disabled={busy}
+            title={busy ? busyReason : undefined}
+            onChange={(e) => useSelectionStore.getState().setTimeRange(timeFrom, e.target.value)}
+          />
+          {hasTime && (
+            <span className={styles.scopeClearWrap} title={busy ? busyReason : undefined}>
+              <button
+                type="button"
+                className={styles.scopeClear}
+                disabled={busy}
+                onClick={() => useSelectionStore.getState().clearTime()}
+              >
+                清除时间
+              </button>
+            </span>
+          )}
+          {hasScope && (
+            <span className={styles.scopeClearWrap} title={busy ? busyReason : undefined}>
+              <button
+                type="button"
+                className={styles.scopeClear}
+                disabled={busy}
+                onClick={() => useSelectionStore.getState().clear()}
+              >
+                回到全库
+              </button>
+            </span>
+          )}
+        </div>
       </div>
 
       <div className={styles.messages}>
