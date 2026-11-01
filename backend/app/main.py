@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import auth, chat, config_api, export, folders, import_, items, summarize
+from .api import auth, backup, chat, config_api, export, folders, import_, items, summarize
 from .config import load_settings
 from .db import get_session_factory, init_db
 from .logging_config import setup_logging
@@ -87,6 +87,7 @@ app.include_router(summarize.router)
 app.include_router(items.router)
 app.include_router(chat.router)
 app.include_router(export.router)
+app.include_router(backup.router)
 app.include_router(config_api.router)
 
 if FRONTEND_DIST.exists():

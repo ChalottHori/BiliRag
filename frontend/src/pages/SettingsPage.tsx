@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { backupNow } from '../api/backup'
 import { getConfig, updateConfig } from '../api/config'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -61,6 +62,8 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['config'] })
     },
   })
+
+  const backupMutation = useMutation({ mutationFn: backupNow })
 
   const set = (key: string, value: string | boolean | number) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -232,7 +235,19 @@ export default function SettingsPage() {
         {section === 'backup' && (
           <div className={styles.backup}>
             <p>数据目录：{configQuery.data?.data_dir}</p>
-            <Button variant="secondary">立即备份（复制数据目录）</Button>
+            <Button
+              variant="secondary"
+              onClick={() => backupMutation.mutate()}
+              disabled={backupMutation.isPending}
+            >
+              立即备份（复制数据目录）
+            </Button>
+            {backupMutation.isSuccess && backupMutation.data && (
+              <p>备份完成：{backupMutation.data.backup_dir}</p>
+            )}
+            {backupMutation.isError && (
+              <p>备份失败：{backupMutation.error.message}</p>
+            )}
           </div>
         )}
 
