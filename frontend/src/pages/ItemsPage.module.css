@@ -67,3 +67,26 @@
   gap: var(--space-sm);
   flex-wrap: wrap;
 }
+
+.exportForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.exportHint {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.exportResult {
+  color: var(--green);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.exportError {
+  color: var(--danger);
+  font-size: 13px;
+  word-break: break-all;
+}

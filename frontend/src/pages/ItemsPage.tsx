@@ -1,16 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getConfig } from '../api/config'
+import { exportMarkdown } from '../api/export'
+import type { ExportBody } from '../api/export'
 import { listFolders } from '../api/folders'
 import { deleteItem, getItem, listItems } from '../api/items'
 import { collectionSummary, resummarizeItem, retryItem } from '../api/summarize'
+import DirPicker from '../components/DirPicker'
 import Drawer from '../components/Drawer'
 import Pagination from '../components/Pagination'
 import StatusTag from '../components/StatusTag'
 import Button from '../components/ui/Button'
+import Dialog from '../components/ui/Dialog'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import { formatItemTitle } from '../utils/format'
 import styles from './ItemsPage.module.css'
+
+type ExportTarget = { kind: 'folder' } | { kind: 'item'; id: string }
 
 export default function ItemsPage() {
   const queryClient = useQueryClient()
@@ -18,8 +25,23 @@ export default function ItemsPage() {
   const [folderId, setFolderId] = useState('')
   const [page, setPage] = useState(1)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [exportTarget, setExportTarget] = useState<ExportTarget | null>(null)
+  const [exportDir, setExportDir] = useState('')
+  const [exportResult, setExportResult] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const exportDirReadyRef = useRef(false)
 
   const foldersQuery = useQuery({ queryKey: ['folders'], queryFn: listFolders })
+
+  const configQuery = useQuery({ queryKey: ['config'], queryFn: getConfig })
+
+  // 首次拿到配置后用后端导出目录预填 DirPicker，后续 refetch 不覆盖用户正在编辑的值
+  useEffect(() => {
+    if (configQuery.data && !exportDirReadyRef.current) {
+      exportDirReadyRef.current = true
+      setExportDir(configQuery.data.export_dir ?? '')
+    }
+  }, [configQuery.data])
 
   const itemsQuery = useQuery({
     queryKey: ['items', keyword, folderId, page],
@@ -58,6 +80,48 @@ export default function ItemsPage() {
 
   const collectionMutation = useMutation({ mutationFn: (id: string) => collectionSummary(id) })
 
+  const exportMutation = useMutation({
+    mutationFn: (body: ExportBody) => exportMarkdown(body),
+    onSuccess: (data) => {
+      setExportResult(`已导出 ${data.count} 条 → ${data.dest_dir}`)
+      setExportError(null)
+    },
+    onError: (err) => {
+      setExportError(err instanceof Error ? err.message : String(err))
+      setExportResult(null)
+    },
+  })
+
+  const openFolderExport = () => {
+    setExportTarget({ kind: 'folder' })
+    setExportResult(null)
+    setExportError(null)
+  }
+
+  const openItemExport = (id: string) => {
+    setExportTarget({ kind: 'item', id })
+    setExportResult(null)
+    setExportError(null)
+  }
+
+  const closeExport = () => {
+    setExportTarget(null)
+    setExportResult(null)
+    setExportError(null)
+  }
+
+  const confirmExport = () => {
+    if (!exportTarget) return
+    const body: ExportBody =
+      exportTarget.kind === 'item'
+        ? { item_ids: [exportTarget.id] }
+        : folderId === ''
+          ? { all: true }
+          : { folder_ids: [folderId] }
+    if (exportDir) body.dest_dir = exportDir
+    exportMutation.mutate(body)
+  }
+
   const items = itemsQuery.data?.items ?? []
   const total = itemsQuery.data?.total ?? 0
   const detail = detailQuery.data
@@ -78,6 +142,9 @@ export default function ItemsPage() {
             </option>
           ))}
         </Select>
+        <Button variant="secondary" onClick={openFolderExport}>
+          导出
+        </Button>
       </div>
 
       <div className={styles.list}>
@@ -125,6 +192,9 @@ export default function ItemsPage() {
               <Button variant="secondary" onClick={() => collectionMutation.mutate(detail.id)}>
                 合集总摘要
               </Button>
+              <Button variant="secondary" onClick={() => openItemExport(detail.id)}>
+                导出
+              </Button>
               <Button variant="ghost" onClick={() => deleteMutation.mutate(detail.id)}>
                 删除
               </Button>
@@ -132,6 +202,24 @@ export default function ItemsPage() {
           </div>
         )}
       </Drawer>
+
+      <Dialog
+        open={exportTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) closeExport()
+        }}
+        title="导出 Markdown"
+      >
+        <div className={styles.exportForm}>
+          <DirPicker value={exportDir} onChange={setExportDir} />
+          <Button onClick={confirmExport} disabled={exportMutation.isPending}>
+            导出
+          </Button>
+          {exportMutation.isPending && <div className={styles.exportHint}>导出中…</div>}
+          {exportResult && <div className={styles.exportResult}>{exportResult}</div>}
+          {exportError && <div className={styles.exportError}>导出失败：{exportError}</div>}
+        </div>
+      </Dialog>
     </div>
   )
 }
