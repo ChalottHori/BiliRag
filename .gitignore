@@ -22,6 +22,12 @@ dist/
 backend/data/
 data/
 
+# Backup artifacts (contain .secret_key, app.db, chroma, logs)
+backend/backups/
+
+# Local design/spec documents (not published to GitHub)
+documents/
+
 # Env / secrets
 .env
 .env.*
