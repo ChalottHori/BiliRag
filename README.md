@@ -90,5 +90,3 @@ BiliRag/
 ├── documents/         # 需求 / UI 设计 / 技术架构 / 风格参考
 └── scripts/start.bat  # 一键启动
 ```
-
-规范文档见 `documents/`（requirements.md、ui设计.md、技术架构设计.md）。
